@@ -1,86 +1,116 @@
-# cf-worker-pan-pdf
-这是一个基于 Cloudflare Workers 的轻量级百度网盘文件下载工具。无需服务器。
+# Cf-Worker-Pan-Pdf ⚡️
 
----
+> 基于 Cloudflare Workers 的某度网盘高速预览服务 (Serverless 版)
 
-## ⚠️ 注意 / Note:
+[![Deploy to Cloudflare Workers](https://img.shields.io/badge/Deploy%20to-Cloudflare%20Workers-orange?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-本项目主要用于小文件下载。
+本项目是一个运行在 Cloudflare Workers 上的轻量级应用，使用某度网盘的 "PDF 预览" 机制，实现对 150MB 以下文件的免客户端高速预览。
 
-仅供学习和个人使用，请勿用于大规模分发或商业用途。
+## ✨ 特性
 
-## ✨ 特性 / Features
-- 🚀 Serverless: 零服务器成本，完全运行在 Cloudflare 边缘节点。
+- **⚡️ Serverless 架构**：无需服务器，直接部署在 Cloudflare Workers 上。
+- **🔄 智能账号轮询**：支持配置多个 Cookie，采用**随机轮询**策略。
+- **🔐 OAuth 2.0 鉴权**：集成了 **Linux.do Connect** 登录。
+- **⏰ 自动清理**：配合 Cron Triggers 定时清理网盘内的临时转存文件。
+- **📱 响应式 UI**：优雅的移动端与桌面端适配，支持批量解析、Aria2 推送。
+- **🕵️‍♂️ 隐私保护**：透传客户端 User-Agent，伪装成浏览器正常预览行为。
 
-- ⚙️ 配置灵活: 支持通过环境变量配置 Cookie 池（JSON 数组格式）。
+## 🛠️ 部署指南
 
-- 🛡️ 隐私安全: 代码开源，Cookie 存储在你的 Cloudflare 环境变量中。
+### 前置要求
 
-## 🛠️ 部署指南 / Deployment
-1.  准备工作
-一个 Cloudflare 账号。
+1.  拥有一个 [Cloudflare](https://dash.cloudflare.com/) 账号。
+2.  本地安装 Node.js 环境。
+3.  拥有至少一个某度账号。
+4.  (可选) [Linux.do](https://connect.linux.do/) 开发者账号用于 OAuth 登录（如不需要可关闭鉴权）。
 
-百度网盘账号的 Cookie (主要是 BDUSS 和 STOKEN)。
+### 1. 克隆项目并安装依赖
 
-2.  创建 Worker
-登录 Cloudflare Dashboard。
+下载代码并安装 Wrangler 等必要的依赖包。
 
-进入 Workers & Pages -> Create Application -> Create Worker。
-
-命名你的 Worker（例如 baidu-downloader），点击 Deploy。
-
-点击 `Edit code`，将本项目中的 worker.js 代码复制进去并保存。
-
-3.  配置环境变量 (关键步骤)
-本项目需要配置名为 `SERVER_DEFAULT_COOKIES` 的环境变量来连接百度网盘。
-
-在 Worker 的设置页面，点击 `Settings -> Variables and Secrets`。
-
-点击 Add 添加变量。
-
-`Variable name`: 输入 `SERVER_DEFAULT_COOKIES`。
-
-`Value`: 输入一个 JSON 格式的字符串数组。每个元素代表一个完整的 Cookie 字符串。
-
-JSON 格式示例:
-
-```JSON
-
-[
-  "BDUSS=你的BDUSS值; STOKEN=你的STOKEN值; ...",
-  "BDUSS=备用账号BDUSS值; STOKEN=备用账号STOKEN值; ..."
-]
+```bash
+git clone https://github.com/lain39/cf-worker-pan-pdf.git
+cd cf-worker-pan-pdf
+npm install
 ```
 
-## 如何获取 Cookie?
+### 2. 登录 Cloudflare
 
-在浏览器登录百度网盘网页版。
+在执行任何写操作之前，必须先授权 Wrangler 访问你的 Cloudflare 账号。执行后会弹出的浏览器窗口，点击 "Allow" 即可。
 
-按 F12 打开开发者工具，刷新页面。
+```bash
+npx wrangler login
+```
 
-在 Network 面板找到任意请求，查看 `Request Headers` 中的 Cookie 字段。
+### 3. 配置 Wrangler
 
-## 完成部署
-配置完成后，点击 Deploy 确保最新配置生效。
+本项目使用 `wrangler.jsonc` 进行配置。
 
-## 📖 使用方法 / Usage
-部署成功后，访问你的 Worker 域名即可使用。
+1.  修改 `wrangler.jsonc` 中的 `ENABLE_AUTH` 来配置是否开启linux do connect鉴权。
+2.  确认 `crons` 定时任务频率（默认每 30 分钟）。
 
-## 🪳已知bug:
+### 4. 设置敏感数据 (Secrets)
 
-1. 有时候生成链接后，网盘中的文件会删除失败。
-2. `{ “error_code”:31326, “error_msg”:“anti hotlinking” }` （但是我自己没复现出来）
+**这是最重要的一步**。请不要将敏感信息直接写在代码里，使用 Cloudflare Secrets 存储。
+
+在项目根目录下运行以下命令：
+
+```bash
+# 1. 设置 Cookie 池 (JSON 数组字符串格式)
+# 格式示例: ["BDUSS=xxx; STOKEN=xxx", "BDUSS=yyy; STOKEN=yyy"]
+npx wrangler secret put SERVER_COOKIES
+
+# (如果开启鉴权):
+
+# 2. 设置 Session 签名密钥 (随机字符串，用于加密 session)
+npx wrangler secret put SESSION_SECRET
+
+# 3. 设置 Linux.do OAuth 密钥 
+npx wrangler secret put LINUX_DO_CLIENT_ID
+npx wrangler secret put LINUX_DO_CLIENT_SECRET
+```
+
+### 5. 部署上线
+
+```bash
+npx wrangler deploy
+```
+
+部署成功后，Cloudflare 会返回一个访问域名（例如 `baidu-worker-pro.你的子域.workers.dev`）。
+
+## ⚙️ 环境变量与配置说明
+
+| 变量名 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `SERVER_COOKIES` | Secret | **核心配置**。JSON 字符串数组，存放百度账号 Cookie。例如 `["Cookie1", "Cookie2"]`。 |
+| `SESSION_SECRET` | Secret | 用于签名登录 Session 的密钥，建议生成一串长随机字符。 |
+| `ENABLE_AUTH` | Config | 是否开启登录鉴权。在 `wrangler.jsonc` 中设为 `true` 或 `false`。 |
+| `LINUX_DO_CLIENT_ID` | Secret | Linux.do Connect 的 Client ID。 |
+| `LINUX_DO_CLIENT_SECRET` | Secret | Linux.do Connect 的 Client Secret。 |
 
 
+## 🧑‍💻 本地开发
 
-## ⚠️ 免责声明 / Disclaimer
-本项目仅供技术研究和教育目的使用。
+```bash
+# 启动本地开发服务器
+npx wrangler dev
 
-使用者应对使用本项目产生的一切后果负责。
+# 注意：本地开发时，你需要创建一个 .dev.vars 文件来模拟 Secrets
+# 格式: KEY=VALUE
+```
 
-请勿使用本项目下载非法内容或侵犯版权的文件。
+## 🐛 已知BUG
 
-作者不对因使用本项目导致的百度网盘账号封禁或限制负责。
+1. `{ "error_code":31326, "error_msg":"anti hotlinking" }`，原因未知，暂时无解（我自己还没复现出这个bug）。
+2. `{“error_code”:31362, "error_msg": "sign error"}` **尝试重新解析**
+
+## ⚠️ 免责声明
+
+1.  本项目仅供学习和技术研究使用，**请勿用于非法用途**。
+2.  本项目利用了百度网盘的预览接口，可能违反其服务条款。使用本项目产生的任何后果（包括但不限于账号被封禁、SVIP 权益受损）由使用者自行承担。
+3.  作者不对任何下载内容负责，请遵守当地法律法规。
 
 ## 📄 License
-MIT
+
+MIT License

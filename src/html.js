@@ -1,26 +1,22 @@
-/**
- * BaiduDisk Fxxker - Cloudflare Worker Backend
- * Refactored from Python to JS for Serverless deployment
- */
+export const FAVICON_CONTENT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+    <path fill="rgb(50,120,200)" d="M64 288C64 341 107 384 160 384L198.6 384L322.7 273C334.9 262.1 350.7 256 367.1 256C411.7 256 443.6 299 430.8 
+    341.7L418.1 384L480 384C533 384 576 341 576 288C576 235 533 192 480 192C479.5 192 478.9 192 478.4 192C479.5 186.8 480 181.5 480 176C480 131.8 
+    444.2 96 400 96C375.7 96 353.9 106.9 339.2 124C320.5 88.3 283.1 64 240 64C178.1 64 128 114.1 128 176C128 183.1 128.7 190.1 129.9 196.8C91.6 
+    209.4 64 245.5 64 288zM224.6 464L286.4 464L255.2 568.1C251.6 580 260.5 592 273 592C277.6 592 282 590.3 285.4 587.3L426.5 460.9C430 457.8 432 
+    453.3 432 448.5C432 439.3 424.6 431.9 415.4 431.9L353.6 431.9L384.8 327.8C388.4 315.9 379.5 303.9 367 303.9C362.4 303.9 358 305.6 354.6 
+    308.6L213.5 435.1C210 438.2 208 442.7 208 447.5C208 456.7 215.4 464.1 224.6 464.1z"/>
+</svg>`
 
-const DEFAULT_UA = "netdisk";
-const PDF_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0";
-
-// --- Configuration ---
-// Serve-side Default Cookies (Array of strings)
-const SERVER_DEFAULT_COOKIES = []; 
-
-// --- HTML Content ---
-const HTML_CONTENT = `<!DOCTYPE html>
+export const HTML_CONTENT = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaiduDisk Fxxker</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20640%20640%22%3E%3Cpath%20fill%3D%22rgb(50%2C120%2C200)%22%20d%3D%22M64%20288C64%20341%20107%20384%20160%20384L198.6%20384L322.7%20273C334.9%20262.1%20350.7%20256%20367.1%20256C411.7%20256%20443.6%20299%20430.8%20341.7L418.1%20384L480%20384C533%20384%20576%20341%20576%20288C576%20235%20533%20192%20480%20192C479.5%20192%20478.9%20192%20478.4%20192C479.5%20186.8%20480%20181.5%20480%20176C480%20131.8%20444.2%2096%20400%2096C375.7%2096%20353.9%20106.9%20339.2%20124C320.5%2088.3%20283.1%2064%20240%2064C178.1%2064%20128%20114.1%20128%20176C128%20183.1%20128.7%20190.1%20129.9%20196.8C91.6%20209.4%2064%20245.5%2064%20288zM224.6%20464L286.4%20464L255.2%20568.1C251.6%20580%20260.5%20592%20273%20592C277.6%20592%20282%20590.3%20285.4%20587.3L426.5%20460.9C430%20457.8%20432%20453.3%20432%20448.5C432%20439.3%20424.6%20431.9%20415.4%20431.9L353.6%20431.9L384.8%20327.8C388.4%20315.9%20379.5%20303.9%20367%20303.9C362.4%20303.9%20358%20305.6%20354.6%20308.6L213.5%20435.1C210%20438.2%20208%20442.7%20208%20447.5C208%20456.7%20215.4%20464.1%20224.6%20464.1z%22%2F%3E%3C%2Fsvg%3E">
+    <title>BaiduDisk Fxxxer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -46,7 +42,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
                     <i class="fa-solid fa-cloud-bolt"></i>
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">BaiduDisk Fxxker</h1>
+                    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">BaiduDisk Fxxxer </h1>
                     <p class="text-sm text-slate-500 font-medium">PDF小文件预览服务</p>
                 </div>
             </div>
@@ -340,6 +336,13 @@ const HTML_CONTENT = `<!DOCTYPE html>
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
+                    
+                    // Auth Check
+                    if (res.status === 401) {
+                       window.location.reload(); // Trigger re-auth redirect
+                       throw new Error("请先登录");
+                    }
+                    
                     const data = await res.json();
                     if (!data.success) throw new Error(data.message || 'Unknown error');
                     return data;
@@ -351,7 +354,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
                     errorMsg.value = '';
                     hasData.value = false;
                     try {
-                        const res = await apiCall('/api/analyze', { link: link.value });
+                        const res = await apiCall('/api/list', { link: link.value });
                         shareData.value = { shareid: res.data.shareid, uk: res.data.uk, sekey: res.data.seckey || '' };
                         const list = res.data.list.map(mapFile);
                         dirCache.value['root'] = list;
@@ -366,13 +369,11 @@ const HTML_CONTENT = `<!DOCTYPE html>
                 };
 
                 const loadDirectoryContent = async (folderPath) => {
-                    // Always try fetch to ensure we have data, but checking cache first is standard.
-                    // If user wants to "traverse inside" to populate cache, we just ensure the fetch happens.
                     if (dirCache.value[folderPath]) {
                         return dirCache.value[folderPath];
                     }
                     try {
-                        const res = await apiCall('/api/list_dir', { link: link.value, dir: folderPath });
+                        const res = await apiCall('/api/list', { link: link.value, dir: folderPath });
                         const list = res.data.list.map(mapFile);
                         dirCache.value[folderPath] = list;
                         return list;
@@ -381,11 +382,11 @@ const HTML_CONTENT = `<!DOCTYPE html>
                         return null;
                     }
                 };
-
+                
                 const runDownloadTask = async (files) => {
                      loadingDir.value = true; // Start Loading Overlay
                      
-                     // Parse Phase
+                     // 2. Parse Phase
                      loadingText.value = '少女祈祷中 (过程可能较慢，请耐心等待)...';
                      processing.value = true;
                      resultLinks.value = [];
@@ -575,368 +576,4 @@ const HTML_CONTENT = `<!DOCTYPE html>
     </script>
 </body>
 </html>
-`; 
-
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Cookie, X-Requested-With",
-    };
-
-    if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
-    try {
-      if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
-        return new Response(HTML_CONTENT, { headers: { "Content-Type": "text/html; charset=utf-8" } });
-      }
-
-      if (url.pathname.startsWith("/api")) {
-        if (request.method !== "POST") throw new Error("Method not allowed");
-        const body = await request.json();
-        
-        const clientIP = "121.11.121.11";
-
-        let responseData = {};
-        if (url.pathname === "/api/analyze") responseData = await handleAnalyze(body);
-        else if (url.pathname === "/api/list_dir") responseData = await handleListDir(body);
-        else if (url.pathname === "/api/download") {
-          env.SERVER_DEFAULT_COOKIES.forEach(c=>SERVER_DEFAULT_COOKIES.push(c));
-          responseData = await handleDownload(body, clientIP);
-        }
-        else return new Response("Not Found", { status: 404, headers: corsHeaders });
-
-        return new Response(JSON.stringify(responseData), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response("Not Found", { status: 404 });
-
-    } catch (e) {
-      return new Response(JSON.stringify({ success: false, message: e.message, stack: e.stack }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-  },
-};
-
-// --- Handlers ---
-
-async function handleAnalyze(body) {
-  const { link } = body;
-  if (!link) throw new Error("Link is required");
-  const { surl, pwd } = getShareInfo(link);
-  
-  // Static call, no client instance required for this logic
-  const res = await BaiduDiskClient.getSharedList(surl, pwd);
-  return { success: true, data: res.data };
-}
-
-async function handleListDir(body) {
-  const { link, dir } = body;
-  if (!link) throw new Error("Link is required");
-  const { surl, pwd } = getShareInfo(link);
-  
-  // Static call
-  const res = await BaiduDiskClient.getSharedList(surl, pwd, dir);
-  return { success: true, data: res.data };
-}
-
-async function handleDownload(body, clientIP) {
-  const { fs_ids, share_data, cookie } = body;
-  if (!fs_ids || !share_data) throw new Error("Missing parameters");
-
-  let client = null;
-  let validCookieFound = false;
-
-  // 1. Try User Cookie first
-  if (cookie && cookie.trim().length > 0 && cookie.includes("BDUSS")) {
-      client = new BaiduDiskClient(cookie, clientIP);
-      if (await client.init()) {
-          validCookieFound = true;
-      }
-  }
-
-  // 2. Fallback to Server Cookies if user cookie failed or empty
-  if (!validCookieFound) {
-      if (!SERVER_DEFAULT_COOKIES || SERVER_DEFAULT_COOKIES.length === 0) {
-          throw new Error("无可用 Cookie，请在设置中配置。");
-      }
-      
-      // Iterate through pool
-      for (const sCookie of SERVER_DEFAULT_COOKIES) {
-          const tempClient = new BaiduDiskClient(sCookie, clientIP);
-          if (await tempClient.init()) {
-              client = tempClient;
-              validCookieFound = true;
-              break;
-          }
-      }
-  }
-
-  if (!validCookieFound || !client) {
-      throw new Error("所有 Cookie 均失效，无法执行操作。");
-  }
-
-  // --- Logic Execution ---
-  const transferDir = `/netdisk/${crypto.randomUUID()}`;
-  const errors = [];
-  const validFiles = [];
-
-  try {
-    // 3. Create Temp Directory
-    await client.createDir(transferDir);
-
-    // 4. Transfer Files
-    try {
-      await client.transferFiles(fs_ids, share_data.shareid, share_data.uk, share_data.sekey, transferDir);
-    } catch (e) {
-      await client.deleteFiles(["/netdisk"]); 
-      await client.createDir(transferDir);
-      await client.transferFiles(fs_ids, share_data.shareid, share_data.uk, share_data.sekey, transferDir);
-    }
-
-    // 5. Recursive List
-    const localFiles = [];
-    await recursiveListFiles(client, transferDir, localFiles);
-
-    if (localFiles.length === 0) {
-      throw new Error("No files found after transfer");
-    }
-
-    const filesToProcess = localFiles.map(f => f.path);
-    const pathInfoMap = {};
-    
-    localFiles.forEach(f => {
-      // Calculate relative path for Aria2
-      let relative = f.path;
-      if (f.path.startsWith(transferDir)) {
-          relative = f.path.substring(transferDir.length + 1); // +1 to remove leading slash
-      }
-      
-      pathInfoMap[f.path] = { 
-          size: f.size, 
-          filename: f.server_filename, 
-          relativePath: relative 
-      };
-    });
-
-    // 6. Processing Logic (PDF mode)
-    const newPaths = [];
-
-    for (const path of filesToProcess) {
-      const info = pathInfoMap[path];
-      
-      if (info.size > 150 * 1024 * 1024) {
-        errors.push(`Skipped ${info.filename}: Size > 150MB`);
-        continue; 
-      }
-
-      const newPath = path + ".pdf";
-      try {
-        const renamed = await client.renameFile(path, info.filename + ".pdf");
-        if (renamed) {
-          newPaths.push(newPath);
-          pathInfoMap[newPath] = info; 
-        } else {
-          errors.push(`Rename failed for ${info.filename}`);
-        }
-      } catch (e) {
-        errors.push(`Rename error for ${info.filename}: ${e.message}`);
-      }
-    }
-
-    // Wait for sync
-    await new Promise(r => setTimeout(r, 1500));
-
-    // Get Links
-    for (const path of newPaths) {
-      const info = pathInfoMap[path];
-      try {
-        const dlink = await client.getSmallFileLink(path);
-        validFiles.push({
-          path: path.slice(0, -4),
-          dlink: dlink,
-          size: info.size,
-          filename: info.filename,
-          relativePath: info.relativePath // Pass relative path to frontend
-        });
-      } catch (e) {
-        errors.push(`Failed to get link for ${info.filename}: ${e.message}`);
-      }
-    }
-    
-    // 7. Global Cleanup
-    await client.deleteFiles([transferDir]);
-
-  } catch (e) {
-    try { await client.deleteFiles([transferDir]); } catch(err) {}
-    throw e;
-  }
-
-  return { success: true, files: validFiles, errors: errors };
-}
-
-
-// --- Helper Classes & Functions ---
-
-function getShareInfo(link) {
-  let surl = "", pwd = "";
-  let m = link.match(/pan\.baidu\.com\/s\/([^\?&]+)/);
-  if (m) surl = m[1];
-  
-  if (!surl) {
-      m = link.match(/surl=([^&]+)/);
-      if (m) surl = '1' + m[1];
-  }
-
-  m = link.match(/pwd=([^&#]+)/);
-  if (m) pwd = m[1];
-
-  if (!surl) throw new Error("Invalid Link");
-  return { surl, pwd };
-}
-
-async function recursiveListFiles(client, dirPath, resultList) {
-  if (resultList.length > 500) return; 
-
-  const items = await client.listFiles(dirPath);
-  for (const item of items) {
-    if (item.isdir == 1) { 
-      await recursiveListFiles(client, item.path, resultList);
-    } else {
-      resultList.push(item);
-    }
-  }
-}
-
-class BaiduDiskClient {
-  constructor(cookie, clientIP) {
-    this.cookie = cookie || "";
-    this.clientIP = clientIP || "121.11.121.11";
-    this.bdstoken = "";
-    this.commonHeaders = {
-      "User-Agent": DEFAULT_UA,
-      "Cookie": this.cookie,
-      "Referer": "https://pan.baidu.com/",
-      "X-Forwarded-For": this.clientIP,
-      "X-BS-Client-IP": this.clientIP,
-      "X-Real-IP": this.clientIP
-    };
-  }
-
-  async fetchJson(url, options = {}) {
-    const headers = { ...this.commonHeaders, ...options.headers };
-    const resp = await fetch(url, { ...options, headers });
-    const data = await resp.json();
-    return data;
-  }
-
-  async init() {
-    // Requires cookie to be set
-    const api = "https://pan.baidu.com/api/gettemplatevariable?clienttype=12&app_id=web=1&fields=[%22bdstoken%22,%22token%22,%22uk%22,%22isdocuser%22,%22servertime%22]";
-    try {
-      const data = await this.fetchJson(api);
-      if (data.errno === 0 && data.result) {
-        this.bdstoken = data.result.bdstoken;
-        return true;
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // STATIC MERGED METHOD: getSharedList
-  // Does not use instance state (cookies/IP)
-  static async getSharedList(surl, pwd, dir = null) {
-    const api = "https://pan.baidu.com/share/wxlist?channel=weixin&version=2.2.3&clienttype=25&web=1&qq-pf-to=pcqq.c2c";
-    const formData = new FormData();
-    formData.append("shorturl", surl);
-    formData.append("pwd", pwd);
-    
-    if (dir) {
-        formData.append("root", "0");
-        formData.append("dir", dir);
-    } else {
-        formData.append("root", "1");
-    }
-    formData.append("page", "1");
-    formData.append("number", "1000");
-    formData.append("order", "time");
-
-    // Standard headers for share page access (no auth required usually)
-    const headers = {
-        "User-Agent": "pan.baidu.com",
-        "Cookie": "XFI=a5670f2f-f8ea-321f-0e65-2aa7030459eb; XFCS=945BEA7DFA30AC8B92389217A688C31B247D394739411C7F697F23C4660EB72F; XFT=42pBCS8fkYaJ0n4gDaF69yRvzWniWgJlXdBy81LXbh0=; csrfToken=jK3l7E6MvfRi1H2nWyosfO6C; BAIDUID=9943076555BFF404B749CCCBEC1EA355:FG=1; BDUSS=XBRv6R3A1AZMa49I27C0gDDLrJyxcIIeUZtBDIaHROBNUIGus13vk3BD9zda3BuRVFBQUFBJCQAAAAAAAAAAAEAAAD0D4SqeGluc2hpZGFptcS80gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADthI2c7YSNnR; BDUSS_BFESS=XBRv6R3A1AZMa49I27C0gDDLrJyxcIIeUZtBDIaHROBNUIGus13vk3BD9zda3BuRVFBQUFBJCQAAAAAAAAAAAEAAAD0D4SqeGluc2hpZGFptcS80gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADthI2c7YSNnR; STOKEN=b16e429c799f22abe9cb85a61a2e7a1623be5fbfba91d7ab436b82efe14f7d9f; BAIDUID_BFESS=9943076555BFF404B749CCCBEC1EA355:FG=1; ploganondeg=1; ppfuid=FOCoIC3q5fKa8fgJnwzbE67EJ49BGJeplOzf+4l4EOvDuu2RXBRv6R3A1AZMa49I27C0gDDLrJyxcIIeAeEhD8JYsoLTpBiaCXhLqvzbzmvy3SeAW17tKgNq/Xx+RgOdb8TWCFe62MVrDTY6lMf2GrfqL8c87KLF2qFER3obJGnsqkZri/4OJbm7r4CyJIowGEimjy3MrXEpSuItnI4KD7cPaJi+EtbDcJgnQk/tNlLFexP6X2MFQoaSQy/vsh9sqhyAYQBt6m4RyCzt+5UgEJFLN5bHzZoV2zGsLtlJj5HGgLbz7OSojK1zRbqBESR5Pdk2R9IA3lxxOVzA+Iw1TWLSgWjlFVG9Xmh1+20oPSbrzvDjYtVPmZ+9/6evcXmhcO1Y58MgLozKnaQIaLfWRFwa8A3ZyTRp/cDxRMhYc94MJmBV3DqpyTuzDwSUDbMyyfzO9u0S9v0HHkJ/i4zKsdnTNS/pLMWceus0e757/UNkQhA4BJH1ZqCtXJJ8GJaKAAv3LCf1Y7/fHL3PTSf9vid/u2VLX4h1nBtx8EF07eCMhWVv+2qjbPV7ZhXk3reaWRFEeso3s/Kc9n/UXtUfNU1sHiCdbrCW5yYsuSM9SPGDZsl7FhTAKw7qIu38vFZiq+DRc8Vbf7jOiN9xPe0lOdZHUhGHZ82rL5jTCsILwcRVCndrarbwmu7G154MpYiKmTXZkqV7Alo4QZzicdyMbWvwvmR2/m//YVTM8qeZWgDSHjDmtehgLWM45zARbPujeqU0T92Gmgs89l2htrSKIYe0e8VVWSBjm4Ilwe4hu3MQsJWBnBSgEjmHQUFtOxdM0EAuvbfy2MtD0b26y0Li0ZdImdyxYIjA1uSy2hfTFv/d3cnXH4nh+maaicAPllDg7JjsxZAfQoVAycJHizlQ5d34k8SzMID0x3kxnXwHfxXvz6DS3RnKydYTBUIWPYKJ4+L4IFygiJ3h+NYV6cyqffNZxCGhdRLPMuw9uS6j8+CIoJDOBjhPsojxAac1HLQgmicvCOZ5ilmUBt/wdqpvyAWuAFbMc1TpNbxQZiCF6/b1+SIlGdqadGFIFR1MMwbooKDbFUOPsQE72/a0kEWC2KhuPKLM9/6dZ00isWP1M71YVK+GcriYXdSGsdTLua2Z4rsiMpSciOy0GtH0BDIaHROBNUIGus13vk3BD9zddjzj9ZJseUlzwEV+bscicwIjSCwQvM4e3xnzVzlld+zvYN0q7Yw+xx5u95PSoz+nO88s9TqjpS2CuGXeoK3JV0ZszUm/I4svUtnuwoAeyS5LWqphVNhJG/707P2GcCYlcR4=; XFI=f7143350-cf68-11f0-8acd-61eeb95b95cf; XFCS=D12B94398162E859E99980DC2175A468BAE41F843F48A7B4D8C99595C2449E64; XFT=8NUZXyjrAxMQs1TDbyjegFt6n4leY0XmQOoTJcXdx34=; Hm_lvt_182d6d59474cf78db37e0b2248640ea5=1764671072; HMACCOUNT=CB7AC1AD9DBFA15B; Hm_lpvt_182d6d59474cf78db37e0b2248640ea5=1764681487; ndut_fmt=7F85A25ED79B99BF420EB77F4AC6F9F9CCBFC78FD26273CEFB05034A9364CCEE; BIDUPSID=9943076555BFF404B749CCCBEC1EA355; PSTM=1764682995; H_PS_PSSID=60279_63143_64314_65866_66124_66209_66233_66370_66289_66261_66393_66464_66529_66586_66594_65802_66615_66664_66681_66665_66697_66630_66775; BA_HECTOR=a1248laga400042l800h2l010lak2j1kitr7l24; ZFY=l3gDrwpkg2D8GkBbq:Bs4euDY:BcFItiLUz0OjoHkCMN4:C; BDRCVFR[feWj1Vr5u3D]=I67x6TjHwwYf0; PSINO=2; delPer=0; BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; __bid_n=19adf4dab4660968afd8f0; H_WISE_SIDS=60279_63143_64314_65866_66124_66209_66233_66370_66289_66261_66393_66464_66529_66586_66594_65802_66615_66664_66681_66665_66697_66630_66775;"
-    };
-
-    const resp = await fetch(api, { method: "POST", body: formData, headers: headers });
-    const data = await resp.json();
-    if (data.errno !== 0) throw new Error(`List error: ${data.errno}`);
-    return data;
-  }
-
-  async createDir(path) {
-    const api = `https://pan.baidu.com/api/create?a=commit&clienttype=0&app_id=250528&web=1&bdstoken=${this.bdstoken}`;
-    const formData = new FormData();
-    formData.append("path", path);
-    formData.append("isdir", "1");
-    formData.append("block_list", "[]");
-    
-    const data = await this.fetchJson(api, { method: "POST", body: formData });
-    if (data.errno !== 0) throw new Error(`Create dir failed: ${data.errno}`);
-    return data.path;
-  }
-
-  async transferFiles(fsids, shareid, uk, sekey, destPath) {
-    const api = `https://pan.baidu.com/share/transfer?shareid=${shareid}&from=${uk}&sekey=${sekey}&ondup=newcopy&async=1&channel=chunlei&web=1&app_id=250528&clienttype=0&bdstoken=${this.bdstoken}`;
-    const formData = new FormData();
-    formData.append("fsidlist", `[${fsids.join(',')}]`);
-    formData.append("path", destPath);
-    
-    const data = await this.fetchJson(api, { method: "POST", body: formData });
-    if (data.errno !== 0) throw new Error(`Transfer failed: ${data.errno} - ${data.show_msg || ''}`);
-    return data;
-  }
-
-  async listFiles(dir) {
-    const api = `https://pan.baidu.com/api/list?clienttype=0&app_id=250528&web=1&order=name&desc=0&dir=${encodeURIComponent(dir)}&num=1000&page=1`;
-    const data = await this.fetchJson(api);
-    if (data.errno !== 0) return [];
-    return data.list || [];
-  }
-
-  async renameFile(path, newName) {
-    const api = `https://pan.baidu.com/api/filemanager?opera=rename&async=2&onnest=fail&channel=chunlei&web=1&app_id=250528&clienttype=0&bdstoken=${this.bdstoken}`;
-    const formData = new FormData();
-    formData.append("filelist", JSON.stringify([{ path, newname: newName }]));
-    
-    const data = await this.fetchJson(api, { method: "POST", body: formData });
-    return data.errno === 0;
-  }
-
-  async deleteFiles(paths) {
-    const api = `https://pan.baidu.com/api/filemanager?opera=delete&async=2&onnest=fail&channel=chunlei&web=1&app_id=250528&clienttype=0&bdstoken=${this.bdstoken}`;
-    const formData = new FormData();
-    formData.append("filelist", JSON.stringify(paths));
-    
-    await this.fetchJson(api, { method: "POST", body: formData });
-  }
-
-  async getSmallFileLink(path) {
-    const logid = btoa(crypto.randomUUID());
-    const api = `https://pan.baidu.com/api/locatedownload?clienttype=0&app_id=250528&web=1&channel=chunlei&logid=${logid}&path=${encodeURIComponent(path)}&origin=pdf&use=1`;
-    
-    const headers = { ...this.commonHeaders, "User-Agent": PDF_UA };
-    const resp = await fetch(api, { headers });
-    const data = await resp.json();
-    
-    if (data.errno === 0) return data.dlink;
-    throw new Error(`Errno ${data.errno}`);
-  }
-}
+`;

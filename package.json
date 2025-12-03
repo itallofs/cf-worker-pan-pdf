@@ -1,0 +1,22 @@
+{
+    "name": "cf-worker-pan-pdf",
+    "version": "1.0.0",
+    "description": "BaiduDisk PDF Preview Service on Cloudflare Workers",
+    "main": "src/index.js",
+    "scripts": {
+      "test": "echo \"Error: no test specified\" && exit 1",
+      "dev": "wrangler dev",
+      "deploy": "wrangler deploy",
+      "login": "wrangler login"
+    },
+    "keywords": [
+      "cloudflare-workers",
+      "serverless",
+      "baidu-disk"
+    ],
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+      "wrangler": "^4.51.0"
+    }
+  }
