@@ -53,7 +53,7 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                         <i class="fa-solid fa-list-check"></i>
                     </button>
                 </transition>
-                <button @click="showSettingsModal = true" class="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center shadow-sm" title="设置 Cookie">
+                <button @click="openSettings" class="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center shadow-sm" title="设置 Cookie">
                     <i class="fa-solid fa-user-gear"></i>
                 </button>
             </div>
@@ -66,10 +66,19 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                 <div class="relative flex-1">
                     <input type="text" v-model="link" @keyup.enter="analyzeLink"
                         placeholder="粘贴链接，例如: https://pan.baidu.com/s/1xxxxxx?pwd=xxxx" 
-                        class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors text-slate-700 font-mono text-sm">
+                        class="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors text-slate-700 font-mono text-sm">
+                    
+                    <!-- Link Icon -->
                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
                         <i class="fa-solid fa-link"></i>
                     </div>
+
+                    <!-- Clear Button -->
+                    <button v-if="link" @click="link = ''" 
+                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        title="清空输入">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
                 </div>
                 <button @click="analyzeLink" :disabled="loading" 
                     class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium shadow-md shadow-indigo-100 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]">
@@ -292,19 +301,37 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                     <div class="p-6 space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-1">Baidu Cookie</label>
-                            <textarea v-model="cookieConfig.bduss" rows="5" placeholder="BDUSS=..." 
-                                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-xs font-mono"></textarea>
+                            <div class="relative">
+                                <textarea v-model="tempConfig.bduss" rows="5" placeholder="BDUSS=..." 
+                                    class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-xs font-mono"></textarea>
+                                <button v-if="tempConfig.bduss" @click="tempConfig.bduss = ''" 
+                                    class="absolute top-2 right-2 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 rounded-full" title="清空">
+                                    <i class="fa-solid fa-circle-xmark"></i>
+                                </button>
+                            </div>
                             <p class="text-xs text-slate-400 mt-1">若留空，将自动轮询服务端预置的账号池。</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-1">本地 Aria2 RPC 地址</label>
-                            <input type="text" v-model="cookieConfig.aria2Url" placeholder="http://localhost:6800/jsonrpc" 
-                                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                            <div class="relative">
+                                <input type="text" v-model="tempConfig.aria2Url" placeholder="http://localhost:6800/jsonrpc" 
+                                    class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                                <button v-if="tempConfig.aria2Url" @click="tempConfig.aria2Url = ''" 
+                                    class="absolute top-0 bottom-0 right-2 flex items-center text-slate-400 hover:text-slate-600 transition-colors" title="清空">
+                                    <i class="fa-solid fa-circle-xmark"></i>
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-1">Aria2 Token</label>
-                            <input type="password" v-model="cookieConfig.aria2Token" placeholder="RPC 密钥 (可选)" 
-                                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                            <div class="relative">
+                                <input type="password" v-model="tempConfig.aria2Token" placeholder="RPC 密钥 (可选)" 
+                                    class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                                <button v-if="tempConfig.aria2Token" @click="tempConfig.aria2Token = ''" 
+                                    class="absolute top-0 bottom-0 right-2 flex items-center text-slate-400 hover:text-slate-600 transition-colors" title="清空">
+                                    <i class="fa-solid fa-circle-xmark"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
@@ -348,6 +375,13 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                     aria2Token: ''
                 });
 
+                // 引入临时配置，用于表单编辑，防止修改后未保存影响下次打开
+                const tempConfig = ref({
+                    bduss: '',
+                    aria2Url: '',
+                    aria2Token: ''
+                });
+
                 onMounted(() => {
                     const saved = localStorage.getItem('baidu_worker_config');
                     if (saved) {
@@ -355,7 +389,15 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                     }
                 });
 
+                // 打开设置时，将生效配置复制一份给临时配置
+                const openSettings = () => {
+                    tempConfig.value = JSON.parse(JSON.stringify(cookieConfig.value));
+                    showSettingsModal.value = true;
+                };
+
+                // 保存时，将临时配置写入生效配置和本地存储
                 const saveConfig = () => {
+                    cookieConfig.value = JSON.parse(JSON.stringify(tempConfig.value));
                     localStorage.setItem('baidu_worker_config', JSON.stringify(cookieConfig.value));
                     showSettingsModal.value = false;
                 };
@@ -704,7 +746,7 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                     showResultModal, showSettingsModal, resultLinks, resultErrors, failedList, skippedList, cookieConfig, isRetrying,
                     analyzeLink, submitDownload, retryFailed, downloadSingle, handleNameClick, handleSelectionClick, toggleSelection,
                     goUp, resetToRoot, toggleAll, formatSize, getIcon, getIconClass, isFolder, isSupported,
-                    copyLink, saveConfig, sendToLocalAria2, batchSendToAria2, openLink
+                    copyLink, saveConfig, sendToLocalAria2, batchSendToAria2, openLink, openSettings, tempConfig
                 };
             }
         }).mount('#app');

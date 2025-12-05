@@ -48,8 +48,18 @@ export async function handleDownload(body, clientIP, env, ctx, userAgent) {
     
     if (serverCookies.length === 0) throw new Error("无可用 Cookie，请联系管理员 (请检查 KV 或 Secret 配置)。");
 
-    const blockedList = await getKvValue(env, KV_BLOCK_KEY, []);
-    let availableCookies = serverCookies.filter(c => !blockedList.includes(c));
+    // 获取黑名单 ID 列表
+    const blockedIds = await getKvValue(env, KV_BLOCK_KEY, []);
+    
+    // 计算所有服务器 Cookie 的 ID 以便比对
+    const cookieCandidates = await Promise.all(serverCookies.map(async c => ({
+        cookie: c,
+        id: await getCookieId(c)
+    })));
+
+    let availableCookies = cookieCandidates
+        .filter(item => !blockedIds.includes(item.id))
+        .map(item => item.cookie);
 
     if (availableCookies.length === 0) {
         console.warn("All cookies are blocked. Retrying with full list...");
@@ -66,6 +76,7 @@ export async function handleDownload(body, clientIP, env, ctx, userAgent) {
         break;
       } else {
         console.warn(`Cookie invalid, adding to blocklist...`);
+        // 异步写入 KV 黑名单 (存 ID)
         ctx.waitUntil(addBlockedCookieToKV(env, sCookie));
       }
     }
@@ -182,28 +193,42 @@ export async function handleCleanDir(env) {
 
   if (kvEnabled) {
       const history = await getKvValue(env, KV_CLEAN_HISTORY_KEY, {});
-      const getCookieId = (c) => c.substring(0, 50);
-      const sortedCookies = [...serverCookies].sort((a, b) => {
-          const timeA = history[getCookieId(a)] || 0;
-          const timeB = history[getCookieId(b)] || 0;
+      
+      // 使用 hash 计算 ID
+      const cookieWithIds = await Promise.all(serverCookies.map(async c => ({
+          cookie: c,
+          id: await getCookieId(c)
+      })));
+
+      const sortedCookies = cookieWithIds.sort((a, b) => {
+          const timeA = history[a.id] || 0;
+          const timeB = history[b.id] || 0;
           return timeA - timeB; 
       });
       targetCookies = sortedCookies.slice(0, CLEAN_BATCH_SIZE);
   } else {
-      targetCookies = shuffleArray(serverCookies).slice(0, CLEAN_BATCH_SIZE);
+      targetCookies = shuffleArray(serverCookies).slice(0, CLEAN_BATCH_SIZE).map(c => ({cookie: c, id: null}));
   }
 
   const results = [];
-  const successCookies = [];
+  const successItems = [];
 
-  const tasks = targetCookies.map(async (cookie, index) => {
+  const tasks = targetCookies.map(async (item, index) => {
+      // 这里的 stagger 仍有必要，避免并发突发
       if (index > 0) await new Promise(r => setTimeout(r, index * STAGGER_MS));
       try {
-          const client = new BaiduDiskClient(cookie);
-          await client.init(); 
-          if (!client.bdstoken) return { status: 'skipped' };
+          const client = new BaiduDiskClient(item.cookie);
+          
+          // 如果 init 失败，说明 cookie 已死，加入黑名单
+          const alive = await client.init(); 
+          
+          if (!alive || !client.bdstoken) {
+              await addBlockedCookieToKV(env, item.cookie);
+              return { status: 'blocked_dead_cookie' };
+          }
+
           await client.deleteFiles(["/netdisk"]);
-          successCookies.push(cookie);
+          if(item.id) successItems.push(item.id);
           return { status: 'success' };
       } catch (e) {
           return { status: 'failed', msg: e.message };
@@ -216,19 +241,25 @@ export async function handleCleanDir(env) {
       else results.push('error');
   });
 
-  if (kvEnabled && successCookies.length > 0) {
+  if (kvEnabled && successItems.length > 0) {
       try {
+          // Read
           const history = await getKvValue(env, KV_CLEAN_HISTORY_KEY, {});
           const now = Date.now();
-          const getCookieId = (c) => c.substring(0, 50);
-          successCookies.forEach(c => {
-              history[getCookieId(c)] = now;
+          
+          // Update memory object
+          successItems.forEach(id => {
+              history[id] = now;
           });
-          const activeIds = new Set(serverCookies.map(getCookieId));
+          
+          // Filter / Cleanup old keys
+          const activeIds = new Set(await Promise.all(serverCookies.map(getCookieId)));
           const cleanHistory = {};
           for (let k in history) {
               if (activeIds.has(k)) cleanHistory[k] = history[k];
           }
+          
+          // Write
           await env.COOKIE_DB.put(KV_CLEAN_HISTORY_KEY, JSON.stringify(cleanHistory));
       } catch (e) {}
   }
@@ -236,34 +267,17 @@ export async function handleCleanDir(env) {
   return `Batch Cleanup Done. Results: ${JSON.stringify(results)}`;
 }
 
-export async function checkHealth(env) {
-  const serverCookies = await getCookiePool(env);
-  const results = [];
-  const currentBlockedList = [];
-  const kvEnabled = !!env.COOKIE_DB;
-
-  const checkPromises = serverCookies.map(async (cookie, index) => {
-      if (index > 0) await new Promise(r => setTimeout(r, index * 200));
-      const client = new BaiduDiskClient(cookie);
-      const alive = await client.init();
-      return { cookie, alive };
-  });
-
-  const checkResults = await Promise.all(checkPromises);
-
-  for (const res of checkResults) {
-      if (!res.alive) currentBlockedList.push(res.cookie);
-      results.push({ mask: res.cookie.substring(0, 10) + "...", alive: res.alive });
-  }
-
-  if (kvEnabled) {
-      await env.COOKIE_DB.put(KV_BLOCK_KEY, JSON.stringify(currentBlockedList));
-  }
-  
-  return results;
-}
-
 // --- Helper Functions ---
+
+// SHA-256 Hash 生成 Cookie ID
+async function getCookieId(cookie) {
+  if (!cookie) return "empty";
+  const msgBuffer = new TextEncoder().encode(cookie);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  // 截取前 12 位 16 进制字符作为 ID
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 12);
+}
 
 async function getCookiePool(env) {
     if (env.COOKIE_DB) {
@@ -297,13 +311,19 @@ async function getKvValue(env, key, defaultValue) {
 
 async function addBlockedCookieToKV(env, cookie) {
     if (!env.COOKIE_DB) return;
-    try {
-        const list = await getKvValue(env, KV_BLOCK_KEY, []);
-        if (!list.includes(cookie)) {
-            list.push(cookie);
-            await env.COOKIE_DB.put(KV_BLOCK_KEY, JSON.stringify(list));
-        }
-    } catch (e) {}
+    const id = await getCookieId(cookie);
+    
+    // Read
+    let list = await getKvValue(env, KV_BLOCK_KEY, []);
+    if (!Array.isArray(list)) list = [];
+    
+    // Check & Write
+    if (!list.includes(id)) {
+        list.push(id);
+        // 限制一下列表长度，防止无限增长
+        if (list.length > 500) list.shift(); 
+        await env.COOKIE_DB.put(KV_BLOCK_KEY, JSON.stringify(list));
+    }
 }
 
 function shuffleArray(array) {

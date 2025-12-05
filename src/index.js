@@ -1,5 +1,5 @@
 import { HTML_CONTENT, FAVICON_CONTENT } from './html.js';
-import { handleList, handleDownload, checkHealth, handleCleanDir } from './core.js';
+import { handleList, handleDownload, handleCleanDir } from './core.js';
 import { handleAuth, verifySession } from './auth.js';
 
 export default {
@@ -54,7 +54,7 @@ export default {
         const body = await request.json();
 
         // 获取客户端 IP
-        const clientIP = request.headers.get("CF-Connecting-IP") || "127.0.0.1";
+        const clientIP = request.headers.get("CF-Connecting-IP") || "121.11.121.11";  // 随便写一个国内ip
         // 获取客户端 User-Agent (用于替换 PDF_UA)
         const userAgent = request.headers.get("User-Agent");
 
@@ -85,18 +85,12 @@ export default {
   async scheduled(event, env, ctx) {
     console.log("Cron trigger fired at:", new Date(event.scheduledTime).toISOString());
 
-    // 任务1：检查 Cookie 池健康状态
-    try {
-      const result = await checkHealth(env);
-      console.log("Health Check Result:", result);
-    } catch (e) {
-      console.error("Health Check Failed:", e);
-    }
-
-    // 任务2：清理 /netdisk 文件夹 (兜底删除残留文件)
+    // 移除全量 checkHealth，仅执行清理任务。
+    // 在清理任务中会自动检测 Cookie 有效性并将失效的拉黑。
+    // 这样每次 Cron 只产生极少量请求。
     try {
       const cleanResult = await handleCleanDir(env);
-      console.log("Cleanup Result:", cleanResult);
+      console.log("Cleanup & Partial Health Check Result:", cleanResult);
     } catch (e) {
       console.error("Cleanup Failed:", e);
     }
