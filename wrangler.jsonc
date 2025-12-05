@@ -5,7 +5,7 @@
   "workers_dev": true,
   "preview_urls": false,
   "vars": {
-    "ENABLE_AUTH": false
+    "ENABLE_AUTH": true
   },
   "triggers": {
     "crons": [

@@ -26,8 +26,8 @@ export async function handleAuth(request, env, url) {
 
       const tokenData = await tokenResp.json();
       if (tokenData.error) {
-          console.error("OAuth Token Error:", tokenData);
-          return new Response(tokenData.error_description || "Token Error", { status: 400 });
+        console.error("OAuth Token Error:", tokenData);
+        return new Response(tokenData.error_description || "Token Error", { status: 400 });
       }
 
       // 2. 获取用户信息
@@ -60,10 +60,10 @@ export async function handleAuth(request, env, url) {
         `SESSION_AUTH=${sessionValue}`,
         "Path=/",
         "HttpOnly",
-        "SameSite=Lax", 
+        "SameSite=Lax",
         "Max-Age=86400"
       ];
-      
+
       if (url.protocol === 'https:') {
         cookieParts.push("Secure");
       }
@@ -94,16 +94,16 @@ export async function verifySession(request, env) {
   try {
     const parts = sessionAuth.split('.');
     if (parts.length !== 2) {
-        console.warn("Invalid Session Format");
-        return null;
+      console.warn("Invalid Session Format");
+      return null;
     }
 
     const [payloadB64, signature] = parts;
-    
+
     const binaryString = atob(payloadB64);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+      bytes[i] = binaryString.charCodeAt(i);
     }
     const rawSession = new TextDecoder().decode(bytes);
 
@@ -147,17 +147,17 @@ async function sign(data, secret) {
 function parseCookies(str) {
   return str.split(';').reduce((acc, v) => {
     const trimmed = v.trim();
-    const separatorIndex = trimmed.indexOf('='); 
-    
+    const separatorIndex = trimmed.indexOf('=');
+
     if (separatorIndex === -1) return acc;
-    
+
     const key = trimmed.slice(0, separatorIndex);
     const val = trimmed.slice(separatorIndex + 1);
-    
+
     try {
-        acc[decodeURIComponent(key)] = decodeURIComponent(val);
-    } catch(e) {
-        acc[key] = val;
+      acc[decodeURIComponent(key)] = decodeURIComponent(val);
+    } catch (e) {
+      acc[key] = val;
     }
     return acc;
   }, {});

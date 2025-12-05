@@ -17,6 +17,7 @@ export const HTML_CONTENT = `<!DOCTYPE html>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <!--__SERVER_CONFIG__-->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -36,7 +37,7 @@ export const HTML_CONTENT = `<!DOCTYPE html>
     <div id="app" class="max-w-6xl mx-auto px-4 py-8">
         
         <!-- Header -->
-        <header class="flex items-center justify-between mb-8 select-none">
+        <header class="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 select-none">
             <div class="flex items-center gap-4">
                 <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-lg shadow-indigo-200">
                     <i class="fa-solid fa-cloud-bolt"></i>
@@ -48,13 +49,30 @@ export const HTML_CONTENT = `<!DOCTYPE html>
             </div>
             
             <div class="flex items-center gap-3">
+                <!-- User Info -->
+                <div v-if="currentUser" class="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-sm text-slate-600 shadow-sm">
+                    <i class="fa-solid fa-user-circle text-indigo-500"></i>
+                    <span class="font-medium max-w-[150px] truncate">{{ currentUser.name || currentUser.username }}</span>
+                </div>
+
                 <transition name="fade">
                     <button v-if="resultLinks.length > 0 || failedList.length > 0 || skippedList.length > 0" @click="showResultModal = true" class="w-10 h-10 rounded-full bg-white border border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors flex items-center justify-center shadow-sm" title="查看结果">
                         <i class="fa-solid fa-list-check"></i>
                     </button>
                 </transition>
-                <button @click="openSettings" class="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center shadow-sm" title="设置 Cookie">
-                    <i class="fa-solid fa-user-gear"></i>
+                
+                <!-- Auth Button -->
+                <button v-if="serverConfig.authEnabled" @click="openAuthSettings" 
+                    class="w-10 h-10 rounded-full bg-white border border-slate-200 transition-colors flex items-center justify-center shadow-sm relative group" 
+                    :class="authStatus ? 'text-emerald-500 hover:bg-emerald-50 hover:border-emerald-200' : 'text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200'"
+                    title="鉴权设置">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span class="absolute top-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white" :class="authStatus ? 'bg-emerald-500' : 'bg-red-400'"></span>
+                </button>
+
+                <!-- Settings Button -->
+                <button @click="openSettings" class="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center shadow-sm" title="系统设置">
+                    <i class="fa-solid fa-gear"></i>
                 </button>
             </div>
         </header>
@@ -94,7 +112,7 @@ export const HTML_CONTENT = `<!DOCTYPE html>
             </transition>
         </div>
 
-        <!-- File List -->
+        <!-- File List (Standard) -->
         <transition name="list">
             <div v-if="hasData" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[600px]">
                 
@@ -211,8 +229,7 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                     </div>
                     
                     <div class="p-0 overflow-y-auto bg-slate-50/50 flex-1">
-                        
-                        <!-- Skipped Files Section (Yellow) -->
+                        <!-- Content (Skipped, skipped list, links) same as before -->
                         <div v-if="skippedList.length > 0" class="p-4 bg-yellow-50 border-b border-yellow-100">
                             <div class="flex items-center gap-2 text-yellow-700 mb-2">
                                 <i class="fa-solid fa-triangle-exclamation"></i>
@@ -225,7 +242,6 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                             </ul>
                         </div>
 
-                        <!-- Failed Retry Section (Orange) -->
                         <div v-if="failedList.length > 0 || isRetrying" class="p-4 bg-orange-50 border-b border-orange-100 flex items-center justify-between sticky top-0 z-20">
                             <div class="flex items-center gap-2 text-orange-700">
                                 <i class="fa-solid fa-circle-exclamation"></i>
@@ -239,7 +255,6 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                             </button>
                         </div>
 
-                        <!-- API Errors Log (Red) -->
                         <div v-if="resultErrors.length > 0" class="p-4 bg-red-50 border-b border-red-100">
                             <h4 class="text-red-700 font-bold text-sm mb-2">错误日志:</h4>
                             <ul class="list-disc list-inside text-xs text-red-600 space-y-1">
@@ -247,7 +262,6 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                             </ul>
                         </div>
 
-                        <!-- Links -->
                         <div v-if="resultLinks.length > 0" class="divide-y divide-slate-100">
                             <div v-for="(item, idx) in resultLinks" :key="idx" class="p-4 hover:bg-white transition-colors">
                                 <div class="flex justify-between items-start gap-4 mb-2">
@@ -257,13 +271,11 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                                     </div>
                                     <span class="text-xs text-slate-400 whitespace-nowrap">{{ formatSize(item.size) }}</span>
                                 </div>
-                                
                                 <div class="flex flex-col gap-2">
                                     <div class="relative">
                                         <input readonly :value="item.dlink" class="w-full bg-slate-100 border border-slate-200 rounded-lg py-1.5 px-3 text-xs font-mono text-slate-600 focus:outline-none">
                                         <button @click="copyLink(item.dlink)" class="absolute right-1 top-1 bottom-1 px-2 bg-white border border-slate-200 rounded text-xs hover:bg-slate-50 text-slate-500">复制</button>
                                     </div>
-                                    
                                     <div class="flex gap-2 mt-1">
                                         <button @click="openLink(item.dlink)" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs py-2 rounded-lg text-center font-medium shadow-sm shadow-emerald-100 transition-colors flex items-center justify-center gap-2">
                                             <i class="fa-solid fa-download"></i> 点击下载
@@ -280,7 +292,6 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                         </div>
                     </div>
                     
-                     <!-- Batch Actions Footer -->
                     <div v-if="resultLinks.length > 0" class="px-6 py-3 border-t border-slate-100 bg-white flex justify-end gap-3">
                          <button @click="batchSendToAria2" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium transition flex items-center gap-2">
                             <i class="fa-solid fa-paper-plane"></i> 全部推送 Aria2
@@ -290,53 +301,126 @@ export const HTML_CONTENT = `<!DOCTYPE html>
             </div>
         </transition>
 
-        <!-- Settings Modal -->
+        <!-- Auth Modal -->
+        <transition name="modal">
+            <div v-if="showAuthModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showAuthModal = false"></div>
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm relative z-10 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800"><i class="fa-solid fa-shield-halved text-indigo-500 mr-2"></i>授权管理</h3>
+                        <button @click="showAuthModal = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+                    </div>
+                    <div class="p-6 space-y-6">
+                        
+                        <!-- Status Display -->
+                        <div class="flex items-center justify-between p-3 rounded-lg" :class="authStatus ? 'bg-emerald-50 border border-emerald-100' : 'bg-red-50 border border-red-100'">
+                            <div class="flex items-center gap-3">
+                                <div class="w-2 h-2 rounded-full" :class="authStatus ? 'bg-emerald-500' : 'bg-red-500'"></div>
+                                <span class="text-sm font-medium" :class="authStatus ? 'text-emerald-700' : 'text-red-700'">
+                                    {{ authStatus ? '已授权' : '未授权 / 已过期' }}
+                                </span>
+                            </div>
+                            <span v-if="currentUser" class="text-xs text-slate-500">{{ currentUser.name }}</span>
+                        </div>
+
+                        <!-- Manual Token -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5 uppercase tracking-wider">Access Token</label>
+                            <div class="relative">
+                                <input type="password" v-model="tempConfig.accessToken" 
+                                       :placeholder="cookieConfig.accessToken ? '已配置 (输入新Token以覆盖)' : '在此输入 API Token'" 
+                                    class="w-full pl-3 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm font-mono transition-all">
+                                <button v-if="tempConfig.accessToken" @click="tempConfig.accessToken = ''" 
+                                    class="absolute top-0 bottom-0 right-2 flex items-center text-slate-400 hover:text-slate-600 transition-colors" title="清空">
+                                    <i class="fa-solid fa-circle-xmark"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Remember Token Checkbox -->
+                            <div class="mt-2 flex items-center gap-2">
+                                <input type="checkbox" id="rememberToken" v-model="rememberToken" class="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                                <label for="rememberToken" class="text-xs text-slate-500 cursor-pointer select-none">记住 Token (保存到本地存储)</label>
+                            </div>
+                            
+                            <p class="text-[10px] text-slate-400 mt-1.5" v-if="!rememberToken">未勾选时，Token 仅在当前会话有效，刷新页面即失效。</p>
+                            <p class="text-[10px] text-slate-400 mt-1.5" v-else>安全提示：Token 将经过随机加盐哈希后存储在本地。</p>
+                        </div>
+                        
+                        <!-- SSO Login -->
+                        <div v-if="serverConfig.ssoEnabled">
+                            <div class="relative flex py-2 items-center">
+                                <div class="flex-grow border-t border-slate-100"></div>
+                                <span class="flex-shrink-0 mx-4 text-slate-300 text-xs font-medium">或者使用 SSO</span>
+                                <div class="flex-grow border-t border-slate-100"></div>
+                            </div>
+                            <button @click="loginWithSSO" class="w-full py-2.5 bg-white border border-slate-200 text-slate-700 hover:border-indigo-300 hover:text-indigo-600 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 group shadow-sm hover:shadow">
+                                <i class="fa-brands fa-linux text-lg group-hover:scale-110 transition-transform"></i> 
+                                <span>Linux.do 登录</span>
+                            </button>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="pt-2 flex gap-3">
+                            <button v-if="currentUser || cookieConfig.accessToken" @click="logout" 
+                                class="flex-1 py-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors">
+                                {{ currentUser ? '退出登录' : '清除配置' }}
+                            </button>
+                            <button @click="saveAuth" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-md shadow-indigo-100 transition-all active:scale-95">保存 Token</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- Settings Modal (Resources) -->
         <transition name="modal">
             <div v-if="showSettingsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showSettingsModal = false"></div>
                 <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative z-10">
                     <div class="px-6 py-4 border-b border-slate-100 bg-slate-50">
-                        <h3 class="font-bold text-slate-800">设置</h3>
+                        <h3 class="font-bold text-slate-800">系统设置</h3>
                     </div>
                     <div class="p-6 space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Baidu Cookie</label>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Baidu Cookie (BDUSS)</label>
                             <div class="relative">
-                                <textarea v-model="tempConfig.bduss" rows="5" placeholder="BDUSS=..." 
+                                <textarea v-model="tempConfig.bduss" rows="4" placeholder="BDUSS=..." 
                                     class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-xs font-mono"></textarea>
                                 <button v-if="tempConfig.bduss" @click="tempConfig.bduss = ''" 
                                     class="absolute top-2 right-2 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 rounded-full" title="清空">
                                     <i class="fa-solid fa-circle-xmark"></i>
                                 </button>
                             </div>
-                            <p class="text-xs text-slate-400 mt-1">若留空，将自动轮询服务端预置的账号池。</p>
+                            <p class="text-xs text-slate-400 mt-1">留空则自动使用服务端账号池。</p>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">本地 Aria2 RPC 地址</label>
-                            <div class="relative">
-                                <input type="text" v-model="tempConfig.aria2Url" placeholder="http://localhost:6800/jsonrpc" 
-                                    class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
-                                <button v-if="tempConfig.aria2Url" @click="tempConfig.aria2Url = ''" 
-                                    class="absolute top-0 bottom-0 right-2 flex items-center text-slate-400 hover:text-slate-600 transition-colors" title="清空">
-                                    <i class="fa-solid fa-circle-xmark"></i>
-                                </button>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Aria2 RPC</label>
+                                <div class="relative">
+                                    <input type="text" v-model="tempConfig.aria2Url" placeholder="http://localhost:6800/jsonrpc" 
+                                        class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                                    <button v-if="tempConfig.aria2Url" @click="tempConfig.aria2Url = ''" 
+                                        class="absolute top-0 bottom-0 right-2 flex items-center text-slate-400 hover:text-slate-600 transition-colors" title="清空">
+                                        <i class="fa-solid fa-circle-xmark"></i>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Aria2 Token</label>
-                            <div class="relative">
-                                <input type="password" v-model="tempConfig.aria2Token" placeholder="RPC 密钥 (可选)" 
-                                    class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
-                                <button v-if="tempConfig.aria2Token" @click="tempConfig.aria2Token = ''" 
-                                    class="absolute top-0 bottom-0 right-2 flex items-center text-slate-400 hover:text-slate-600 transition-colors" title="清空">
-                                    <i class="fa-solid fa-circle-xmark"></i>
-                                </button>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Aria2 Token</label>
+                                <div class="relative">
+                                    <input type="password" v-model="tempConfig.aria2Token" placeholder="Secret Key" 
+                                        class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                                    <button v-if="tempConfig.aria2Token" @click="tempConfig.aria2Token = ''" 
+                                        class="absolute top-0 bottom-0 right-2 flex items-center text-slate-400 hover:text-slate-600 transition-colors" title="清空">
+                                        <i class="fa-solid fa-circle-xmark"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                     <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                         <button @click="showSettingsModal = false" class="px-4 py-2 text-slate-500 hover:text-slate-700 text-sm font-medium">取消</button>
-                        <button @click="saveConfig" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm">保存</button>
+                        <button @click="saveConfig" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm">保存配置</button>
                     </div>
                 </div>
             </div>
@@ -356,8 +440,10 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                 const processing = ref(false);
                 const errorMsg = ref('');
                 const hasData = ref(false);
+                
                 const showResultModal = ref(false);
                 const showSettingsModal = ref(false);
+                const showAuthModal = ref(false);
                 
                 const shareData = ref({});
                 const currentList = ref([]);
@@ -369,49 +455,147 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                 const skippedList = ref([]); // 跳过的大文件
                 const isRetrying = ref(false); 
 
+                // Inject Server Config safely
+                const serverConfig = window.SERVER_CONFIG || { authEnabled: false, ssoEnabled: false };
+                
+                const currentUser = ref(null);
+                const authStatus = ref(false);
+
                 const cookieConfig = ref({
                     bduss: '',
                     aria2Url: 'http://localhost:6800/jsonrpc',
-                    aria2Token: ''
+                    aria2Token: '',
+                    accessToken: '',
+                    authSalt: ''
                 });
 
-                // 引入临时配置，用于表单编辑，防止修改后未保存影响下次打开
-                const tempConfig = ref({
-                    bduss: '',
-                    aria2Url: '',
-                    aria2Token: ''
-                });
+                const tempConfig = ref({ ...cookieConfig.value });
+                const rememberToken = ref(false);
 
-                onMounted(() => {
+                onMounted(async () => {
                     const saved = localStorage.getItem('baidu_worker_config');
                     if (saved) {
-                        try { cookieConfig.value = JSON.parse(saved); } catch(e){}
+                        try { 
+                            const parsed = JSON.parse(saved);
+                            // Merge saved config
+                            cookieConfig.value = { ...cookieConfig.value, ...parsed };
+                            if (parsed.accessToken) {
+                                rememberToken.value = true;
+                            }
+                        } catch(e){}
                     }
+                    // Auto Check Auth
+                    await checkAuthStatus();
                 });
 
-                // 打开设置时，将生效配置复制一份给临时配置
+                const openAuthSettings = () => {
+                    // Don't prefill token for security/UX, just let them overwrite if needed
+                    tempConfig.value.accessToken = '';
+                    showAuthModal.value = true;
+                };
+
                 const openSettings = () => {
                     tempConfig.value = JSON.parse(JSON.stringify(cookieConfig.value));
                     showSettingsModal.value = true;
                 };
 
-                // 保存时，将临时配置写入生效配置和本地存储
                 const saveConfig = () => {
-                    cookieConfig.value = JSON.parse(JSON.stringify(tempConfig.value));
-                    localStorage.setItem('baidu_worker_config', JSON.stringify(cookieConfig.value));
+                    // Update only resource settings
+                    cookieConfig.value.bduss = tempConfig.value.bduss;
+                    cookieConfig.value.aria2Url = tempConfig.value.aria2Url;
+                    cookieConfig.value.aria2Token = tempConfig.value.aria2Token;
+                    persistConfig();
                     showSettingsModal.value = false;
                 };
 
-                const apiCall = async (endpoint, payload) => {
+                const saveAuth = async () => {
+                    // Only update token if user typed something new
+                    if (tempConfig.value.accessToken) {
+                        const salt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                        const hash = await digestMessage(tempConfig.value.accessToken + salt);
+                        cookieConfig.value.accessToken = hash;
+                        cookieConfig.value.authSalt = salt;
+                    }
+                    
+                    persistConfig();
+                    showAuthModal.value = false;
+                    checkAuthStatus(); // Re-check after token update
+                };
+
+                const persistConfig = () => {
+                    const dataToSave = JSON.parse(JSON.stringify(cookieConfig.value));
+                    if (!rememberToken.value) {
+                        dataToSave.accessToken = '';
+                        dataToSave.authSalt = '';
+                    }
+                    localStorage.setItem('baidu_worker_config', JSON.stringify(dataToSave));
+                };
+                
+                const loginWithSSO = () => {
+                    window.location.href = '/auth/login';
+                };
+
+                const logout = () => {
+                    // Clear Token
+                    cookieConfig.value.accessToken = '';
+                    cookieConfig.value.authSalt = '';
+                    tempConfig.value.accessToken = '';
+                    rememberToken.value = false;
+                    persistConfig();
+                    // Clear Session Cookie via Server Redirect (needed for HttpOnly cookies)
+                    window.location.href = "/auth/logout";
+                };
+
+                // --- Helper: SHA-256 ---
+                const digestMessage = async (message) => {
+                    const msgUint8 = new TextEncoder().encode(message);
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                };
+
+                // --- Auth Logic ---
+                const checkAuthStatus = async () => {
+                    // If auth is disabled globally, we are always "authorized"
+                    if (!serverConfig.authEnabled) {
+                        authStatus.value = true;
+                        return;
+                    }
+
+                    try {
+                        const res = await apiCall('/api/user', {}, true); // Silent check
+                        authStatus.value = true;
+                        if (res.user) currentUser.value = res.user;
+                        if (errorMsg.value && errorMsg.value.includes('授权')) errorMsg.value = '';
+                    } catch (e) {
+                        authStatus.value = false;
+                        currentUser.value = null;
+                        // Don't show error msg on initial load
+                    }
+                };
+
+                const apiCall = async (endpoint, payload, silent = false) => {
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (cookieConfig.value.accessToken) {
+                        headers['Authorization'] = 'Bearer ' + cookieConfig.value.accessToken;
+                        if (cookieConfig.value.authSalt) {
+                            headers['X-Auth-Salt'] = cookieConfig.value.authSalt;
+                        }
+                    }
+
                     const res = await fetch(endpoint, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: headers,
                         body: JSON.stringify(payload)
                     });
                     
                     if (res.status === 401) {
-                       window.location.reload(); 
-                       throw new Error("请先登录");
+                        if (!silent) {
+                            errorMsg.value = "授权失效，请点击右上角盾牌图标进行配置";
+                            // Use the same open logic as the button
+                            openAuthSettings();
+                        }
+                        throw new Error("Unauthorized");
                     }
                     
                     const data = await res.json();
@@ -526,15 +710,11 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                             // 过滤大文件
                             targetFiles = allFiles.filter(f => f.size <= 157286400);
                             const skipped = allFiles.filter(f => f.size > 157286400);
-                            
-                            if (skipped.length > 0) {
-                                skippedList.value = skipped; // 存入跳过列表供 UI 显示
-                            }
+                            if (skipped.length > 0) skippedList.value = skipped;
                         }
 
                         if (targetFiles.length === 0) {
                             if (!isRetry && skippedList.value.length === 0) alert("没有符合条件的文件");
-                            // 如果全是跳过的文件，也应该显示结果弹窗
                             if (skippedList.value.length > 0) showResultModal.value = true;
                             return;
                         }
@@ -559,17 +739,11 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                                 
                                 if (res.files) {
                                     resultLinks.value.push(...res.files);
-                                    
                                     const successNames = new Set(res.files.map(f => f.filename));
                                     const batchFailures = batch.filter(f => !successNames.has(f.server_filename));
-                                    if (batchFailures.length > 0) {
-                                        failedList.value.push(...batchFailures);
-                                    }
+                                    if (batchFailures.length > 0) failedList.value.push(...batchFailures);
                                 }
-                                
-                                if (res.errors && res.errors.length > 0) {
-                                    resultErrors.value.push(...res.errors);
-                                }
+                                if (res.errors && res.errors.length > 0) resultErrors.value.push(...res.errors);
                                 
                             } catch (e) {
                                 resultErrors.value.push('Batch ' + batchNum + ' failed: ' + e.message);
@@ -580,7 +754,7 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                         showResultModal.value = true;
                         if (!isRetry) currentList.value.forEach(f => { f.selected = false; });
                      } catch(e) {
-                        alert('Error: ' + e.message);
+                         if (!e.message.includes("Unauthorized")) alert('Error: ' + e.message);
                      } finally {
                         processing.value = false;
                         loadingDir.value = false; 
@@ -610,10 +784,7 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                     if (!resultLinks.value.length) return;
                     let count = 0;
                     for (const item of resultLinks.value) {
-                        try {
-                            await sendToLocalAria2Logic(item);
-                            count++;
-                        } catch(e) { console.error(e); }
+                        try { await sendToLocalAria2Logic(item); count++; } catch(e) { console.error(e); }
                     }
                     alert('已发送 ' + count + ' / ' + resultLinks.value.length + ' 个任务');
                 };
@@ -666,15 +837,11 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                 };
                 
                 const handleSelectionClick = (file) => {
-                    if (isSupported(file)) {
-                        file.selected = !file.selected;
-                    }
+                    if (isSupported(file)) file.selected = !file.selected;
                 }
                 
                 const toggleSelection = (file) => {
-                    if (isSupported(file)) {
-                        file.selected = !file.selected;
-                    }
+                    if (isSupported(file)) file.selected = !file.selected;
                 };
 
                 const enterFolder = async (folder) => {
@@ -743,10 +910,11 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                 return {
                     link, loading, loadingDir, loadingText, processing, errorMsg, hasData,
                     currentList, currentPath, selectedCount, isAllSelected,
-                    showResultModal, showSettingsModal, resultLinks, resultErrors, failedList, skippedList, cookieConfig, isRetrying,
+                    showResultModal, showSettingsModal, showAuthModal, resultLinks, resultErrors, failedList, skippedList, 
+                    cookieConfig, tempConfig, isRetrying, serverConfig, authStatus, currentUser, rememberToken,
                     analyzeLink, submitDownload, retryFailed, downloadSingle, handleNameClick, handleSelectionClick, toggleSelection,
                     goUp, resetToRoot, toggleAll, formatSize, getIcon, getIconClass, isFolder, isSupported,
-                    copyLink, saveConfig, sendToLocalAria2, batchSendToAria2, openLink, openSettings, tempConfig
+                    copyLink, saveConfig, saveAuth, sendToLocalAria2, batchSendToAria2, openLink, openSettings, openAuthSettings, loginWithSSO, logout
                 };
             }
         }).mount('#app');

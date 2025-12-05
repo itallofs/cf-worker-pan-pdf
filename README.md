@@ -1,21 +1,35 @@
-# Cf-Worker-Pan-Pdf ⚡️
+<div align="center">
+  <a href="https://github.com/lain39/cf-worker-pan-pdf" title="cf-worker-pan-pdf's Github repository.">
+    <img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20640%20640%22%3E%3Crect%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20x%3D%220%22%20y%3D%220%22%20width%3D%22640%22%20height%3D%22640%22%20rx%3D%2280%22%20ry%3D%2280%22%20fill%3D%22%234F46E5%22%2F%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M64%20288C64%20341%20107%20384%20160%20384L198.6%20384L322.7%20273C334.9%20262.1%20350.7%20256%20367.1%20256C411.7%20256%20443.6%20299%20430.8%20341.7L418.1%20384L480%20384C533%20384%20576%20341%20576%20288C576%20235%20533%20192%20480%20192C479.5%20192%20478.9%20192%20478.4%20192C479.5%20186.8%20480%20181.5%20480%20176C480%20131.8%20444.2%2096%20400%2096C375.7%2096%20353.9%20106.9%20339.2%20124C320.5%2088.3%20283.1%2064%20240%2064C178.1%2064%20128%20114.1%20128%20176C128%20183.1%20128.7%20190.1%20129.9%20196.8C91.6%20209.4%2064%20245.5%2064%20288zM224.6%20464L286.4%20464L255.2%20568.1C251.6%20580%20260.5%20592%20273%20592C277.6%20592%20282%20590.3%20285.4%20587.3L426.5%20460.9C430%20457.8%20432%20453.3%20432%20448.5C432%20439.3%20424.6%20431.9%20415.4%20431.9L353.6%20431.9L384.8%20327.8C388.4%20315.9%20379.5%20303.9%20367%20303.9C362.4%20303.9%20358%20305.6%20354.6%20308.6L213.5%20435.1C210%20438.2%20208%20442.7%20208%20447.5C208%20456.7%20215.4%20464.1%20224.6%20464.1z%22%2F%3E%3C%2Fsvg%3E" width="80" height="auto"/>
+  </a>
+  <p align="center">
+    <a href="https://github.com/lain39/cf-worker-pan-pdf/releases">
+      <img src="https://img.shields.io/github/v/release/lain39/cf-worker-pan-pdf" alt="release">
+    </a>
+    <a href="https://github.com/lain39/cf-worker-pan-pdf/blob/master/LICENSE">
+      <img src="https://img.shields.io/github/license/lain39/cf-worker-pan-pdf" alt="license">
+    </a>
+    <a href="https://workers.cloudflare.com/">
+      <img src="https://img.shields.io/badge/Deploy%20to-Cloudflare%20Workers-orange?logo=cloudflare&logoColor=white" alt="Deploy to Cloudflare Workers">
+    </a>    
+  </p>
+  <img src="https://github.com/user-attachments/assets/8b0f691a-1ad9-4cc4-911a-e2b2f017d42f" width="650" height="auto"/>
+</div>
 
+# Cf-Worker-Pan-Pdf ⚡️
 > 基于 Cloudflare Workers 的某度网盘高速预览服务 (Serverless 版)
 
-[![Deploy to Cloudflare Workers](https://img.shields.io/badge/Deploy%20to-Cloudflare%20Workers-orange?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
 本项目是一个运行在 Cloudflare Workers 上的轻量级应用，使用某度网盘的 "PDF 预览" 机制，实现对 150MB 以下文件的免客户端高速预览。
-
-## 📸 界面预览
-
-![App Screenshot](https://github.com/user-attachments/assets/8b0f691a-1ad9-4cc4-911a-e2b2f017d42f)
 
 ## ✨ 特性
 
 - **⚡️ Serverless 架构**：无需服务器，直接部署在 Cloudflare Workers 上。
 - **🔄 智能账号轮询**：支持配置多个 Cookie，采用**随机轮询**策略。
-- **🔐 OAuth 2.0 鉴权**：集成了 **Linux.do Connect** 登录。
+- **🔐 多重鉴权支持**：
+
+  - SSO 登录：支持 Linux.do Connect 一键登录（可选配置）。
+
+  - Access Token：支持手动配置访问令牌 (Bearer Token)，方便 API 调用或免 SSO 使用。
 - **⏰ 智能清理**：配合 Cron Triggers 定时清理网盘内的临时转存文件以及验证Cookie有效性。
   -  错峰清理：并发请求自动错峰。
   -  优先清理：可以配置 KV 记录清理时间以及账号有效性，优先清理最久未处理的账号。
@@ -46,7 +60,7 @@
 1.  拥有一个 [Cloudflare](https://dash.cloudflare.com/) 账号。
 2.  本地安装 Node.js 环境。
 3.  拥有至少一个某度账号。
-4.  (可选) [Linux.do](https://connect.linux.do/) 开发者账号用于 OAuth 登录（如不需要可关闭鉴权）。
+4.  (可选) [Linux.do](https://connect.linux.do/) 账号用于 SSO 登录。
 
 ### 1. 克隆项目并安装依赖
 
@@ -68,18 +82,18 @@ npx wrangler login
 
 ### 3. 创建 KV 命名空间 (如果需要该配置)
 
-如果账号较多，KV 用于存储失效账号黑名单和清理历史，能大幅提升稳定性。
+KV 用于存储失效账号黑名单、清理历史以及Cookie 池，如果账号较多，能提升稳定性并支持大量账号。
 ```bash
 npx wrangler kv namespace create COOKIE_DB
 ```
 
-运行后，终端会输出一个 id（例如 e0a1b2...）。请复制这个 ID。
+运行后，终端会输出一个 id（例如 `e0a1b2...`）。请复制这个 ID。
 
 ### 4. 配置 Wrangler
 
 本项目使用 `wrangler.jsonc` 进行配置。
 
-1.  修改 `wrangler.jsonc` 中的 `ENABLE_AUTH` 来配置是否开启linux do connect鉴权。
+1.  `ENABLE_AUTH`: 设置为 `true` 将开启 API 鉴权保护（必须登录或提供 Token 才能使用），设置为 `false` 则完全公开。
 2.  确认 `crons` 定时任务频率（默认每 2小时）。
 3.  如果要启用 KV 来管理Cookie，请加入如下配置: 
 ```jsonc
@@ -95,33 +109,47 @@ npx wrangler kv namespace create COOKIE_DB
 
 ### 5. 设置敏感数据 (Secrets)
 
-**这是最重要的一步**。请不要将敏感信息直接写在代码里，使用 Cloudflare Secrets 存储。
+请不要将敏感信息直接写在代码里，使用 Cloudflare Secrets 存储。
 
 在项目根目录下运行以下命令：
+#### 5.1 配置 Cookie 池 (二选一)
+
+**方案 A: 使用环境变量 (简单，适合少量账号)**
 
 ```bash
-# 1. 设置 Cookie 池 (JSON 数组字符串格式)
-# 格式示例: ["BDUSS=xxx", "BDUSS=yyy"]
+# 直接设置 Secret
+# 格式: JSON 字符串数组 ["BDUSS=xxx", "BDUSS=yyy"]
 npx wrangler secret put SERVER_COOKIES
+```
 
-# (如果开启鉴权):
+**方案 B: 使用 KV 存储 (如果启用，支持大量账号)**
 
-# 2. 设置 Session 签名密钥 (随机字符串，用于加密 session)
+```bash
+# 1. 准备 cookies.json 文件，内容为 JSON 字符串数组
+# 格式: ["BDUSS=xxx", "BDUSS=yyy"]
+# 文件名示例: cookies.json
+
+# 2. 上传到 Cloudflare KV
+npx wrangler kv key put --binding=COOKIE_DB "server_cookies_pool" --path=cookies.json --remote
+
+# 3. (可选) 如果要在本地开发环境 (npm run dev) 使用：
+npx wrangler kv key put --binding=COOKIE_DB "server_cookies_pool" --path=cookies.json --preview
+```
+
+#### 5.2 配置鉴权 (可选)
+```bash
+# 1. 设置 Access Token (用于手动授权/API调用)
+# 设置后，可在网页设置中填入此 Token 进行授权，无需 SSO
+npx wrangler secret put ACCESS_TOKEN
+
+# 2. 设置 Session 签名密钥 (如果开启鉴权则必须设置)
+# 生成一个随机字符串即可
 npx wrangler secret put SESSION_SECRET
 
-# 3. 设置 Linux.do OAuth 密钥 
+# 3. 设置 Linux.do SSO (如果需要 SSO 登录)
+# 如果不设置这两个 Secrets，SSO 登录按钮将自动隐藏
 npx wrangler secret put LINUX_DO_CLIENT_ID
 npx wrangler secret put LINUX_DO_CLIENT_SECRET
-```
-
-如果开启了KV来管理Cookie，可以用以下命令将Cookies传到Cloudflare KV：
-```bash
-# 先准备好cookies.json文件：["BDUSS=xxx", "BDUSS=yyy"...]
-npx wrangler kv key put --binding=COOKIE_DB "server_cookies_pool" --path=cookies.json --remote
-```
-如果你在本地开发 (npm run dev) 也想用这组 Cookie，需要给预览环境也传一份：
-```bash
-npx wrangler kv key put --binding=COOKIE_DB "server_cookies_pool" --path=cookies.json --preview
 ```
 
 ### 6. 部署上线
@@ -136,11 +164,12 @@ npx wrangler deploy
 
 | 变量名 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `SERVER_COOKIES` | Secret | **核心配置**。JSON 字符串数组，存放百度账号 Cookie。例如 `["Cookie1", "Cookie2"]`。 |
-| `SESSION_SECRET` | Secret | 用于签名登录 Session 的密钥，建议生成一串长随机字符。 |
-| `ENABLE_AUTH` | Config | 是否开启登录鉴权。在 `wrangler.jsonc` 中设为 `true` 或 `false`。 |
-| `LINUX_DO_CLIENT_ID` | Secret | Linux.do Connect 的 Client ID。 |
-| `LINUX_DO_CLIENT_SECRET` | Secret | Linux.do Connect 的 Client Secret。 |
+| `SERVER_COOKIES` | Secret | **可选**。JSON 字符串数组。如果使用了 KV (`server_cookies_pool`)，则无需配置此项。 |
+| `ENABLE_AUTH` | Config | **功能开关**。是否开启 API 鉴权保护。`true` = 必须授权才能解析；`false` = 公开访问。 |
+| `ACCESS_TOKEN` | Secret | **可选**。自定义访问令牌。设置后可通过 Header `Authorization: Bearer <token>` 或在网页设置中输入该 Token 进行授权。 |
+| `SESSION_SECRET` | Secret | **可选**。用于签名登录 Session 的密钥，开启 `ENABLE_AUTH` 时必须设置。 |
+| `LINUX_DO_CLIENT_ID` | Secret | **可选**。Linux.do Connect 的 Client ID。配置后网页将显示 "Linux.do 登录" 按钮。 |
+| `LINUX_DO_CLIENT_SECRET` | Secret | **可选**。同上。Linux.do Connect 的 Client Secret。 |
 
 
 ## 🧑‍💻 本地开发

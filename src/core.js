@@ -6,13 +6,13 @@ const DEFAULT_UA = "netdisk";
 const DEFAULT_PDF_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // KV 键名常量
-const KV_BLOCK_KEY = "blocked_cookies";      
-const KV_CLEAN_HISTORY_KEY = "clean_history"; 
+const KV_BLOCK_KEY = "blocked_cookies";
+const KV_CLEAN_HISTORY_KEY = "clean_history";
 const KV_COOKIE_POOL_KEY = "server_cookies_pool";
 
 // 配置常量
-const CLEAN_BATCH_SIZE = 5; 
-const STAGGER_MS = 1000;    
+const CLEAN_BATCH_SIZE = 5;
+const STAGGER_MS = 1000;
 
 // --- API Handles ---
 
@@ -45,25 +45,25 @@ export async function handleDownload(body, clientIP, env, ctx, userAgent) {
   // 2. 如果没有自定义 Cookie，则从服务器池中获取
   if (!validCookieFound) {
     const serverCookies = await getCookiePool(env);
-    
+
     if (serverCookies.length === 0) throw new Error("无可用 Cookie，请联系管理员 (请检查 KV 或 Secret 配置)。");
 
     // 获取黑名单 ID 列表
     const blockedIds = await getKvValue(env, KV_BLOCK_KEY, []);
-    
+
     // 计算所有服务器 Cookie 的 ID 以便比对
     const cookieCandidates = await Promise.all(serverCookies.map(async c => ({
-        cookie: c,
-        id: await getCookieId(c)
+      cookie: c,
+      id: await getCookieId(c)
     })));
 
     let availableCookies = cookieCandidates
-        .filter(item => !blockedIds.includes(item.id))
-        .map(item => item.cookie);
+      .filter(item => !blockedIds.includes(item.id))
+      .map(item => item.cookie);
 
     if (availableCookies.length === 0) {
-        console.warn("All cookies are blocked. Retrying with full list...");
-        availableCookies = serverCookies;
+      console.warn("All cookies are blocked. Retrying with full list...");
+      availableCookies = serverCookies;
     }
 
     const shuffledCookies = shuffleArray(availableCookies);
@@ -109,7 +109,7 @@ export async function handleDownload(body, clientIP, env, ctx, userAgent) {
     if (localFiles.length === 0) throw new Error("No files found after transfer");
 
     const filesToProcess = localFiles.map(f => f.path);
-    
+
     const pathInfoMap = {};
     localFiles.forEach(f => {
       let relative = f.path;
@@ -129,25 +129,25 @@ export async function handleDownload(body, clientIP, env, ctx, userAgent) {
       }
       const newName = info.filename + ".pdf";
       renameList.push({ path: path, newname: newName });
-      
+
       const newPath = path + ".pdf";
       newPaths.push(newPath);
       pathInfoMap[newPath] = info;
     }
 
     if (renameList.length > 0) {
-        try {
-            const renameSuccess = await client.renameBatch(renameList);
-            if (!renameSuccess) {
-                throw new Error("Batch rename failed");
-            }
-        } catch (e) {
-            throw new Error(`Renaming failed: ${e.message}`);
+      try {
+        const renameSuccess = await client.renameBatch(renameList);
+        if (!renameSuccess) {
+          throw new Error("Batch rename failed");
         }
+      } catch (e) {
+        throw new Error(`Renaming failed: ${e.message}`);
+      }
     }
 
     // 6. 等待同步
-    await new Promise(r => setTimeout(r, 1500)); 
+    await new Promise(r => setTimeout(r, 1500));
 
     // 7. 获取链接
     const targetUA = userAgent || DEFAULT_PDF_UA;
@@ -172,7 +172,7 @@ export async function handleDownload(body, clientIP, env, ctx, userAgent) {
     if (isUserCookie) {
       ctx.waitUntil((async () => {
         await new Promise(resolve => setTimeout(resolve, 30 * 1000));
-        try { await client.deleteFiles([transferDir]); } catch (err) {}
+        try { await client.deleteFiles([transferDir]); } catch (err) { }
       })());
     }
 
@@ -192,76 +192,76 @@ export async function handleCleanDir(env) {
   const kvEnabled = !!env.COOKIE_DB;
 
   if (kvEnabled) {
-      const history = await getKvValue(env, KV_CLEAN_HISTORY_KEY, {});
-      
-      // 使用 hash 计算 ID
-      const cookieWithIds = await Promise.all(serverCookies.map(async c => ({
-          cookie: c,
-          id: await getCookieId(c)
-      })));
+    const history = await getKvValue(env, KV_CLEAN_HISTORY_KEY, {});
 
-      const sortedCookies = cookieWithIds.sort((a, b) => {
-          const timeA = history[a.id] || 0;
-          const timeB = history[b.id] || 0;
-          return timeA - timeB; 
-      });
-      targetCookies = sortedCookies.slice(0, CLEAN_BATCH_SIZE);
+    // 使用 hash 计算 ID
+    const cookieWithIds = await Promise.all(serverCookies.map(async c => ({
+      cookie: c,
+      id: await getCookieId(c)
+    })));
+
+    const sortedCookies = cookieWithIds.sort((a, b) => {
+      const timeA = history[a.id] || 0;
+      const timeB = history[b.id] || 0;
+      return timeA - timeB;
+    });
+    targetCookies = sortedCookies.slice(0, CLEAN_BATCH_SIZE);
   } else {
-      targetCookies = shuffleArray(serverCookies).slice(0, CLEAN_BATCH_SIZE).map(c => ({cookie: c, id: null}));
+    targetCookies = shuffleArray(serverCookies).slice(0, CLEAN_BATCH_SIZE).map(c => ({ cookie: c, id: null }));
   }
 
   const results = [];
   const successItems = [];
 
   const tasks = targetCookies.map(async (item, index) => {
-      // 这里的 stagger 仍有必要，避免并发突发
-      if (index > 0) await new Promise(r => setTimeout(r, index * STAGGER_MS));
-      try {
-          const client = new BaiduDiskClient(item.cookie);
-          
-          // 如果 init 失败，说明 cookie 已死，加入黑名单
-          const alive = await client.init(); 
-          
-          if (!alive || !client.bdstoken) {
-              await addBlockedCookieToKV(env, item.cookie);
-              return { status: 'blocked_dead_cookie' };
-          }
+    // 这里的 stagger 仍有必要，避免并发突发
+    if (index > 0) await new Promise(r => setTimeout(r, index * STAGGER_MS));
+    try {
+      const client = new BaiduDiskClient(item.cookie);
 
-          await client.deleteFiles(["/netdisk"]);
-          if(item.id) successItems.push(item.id);
-          return { status: 'success' };
-      } catch (e) {
-          return { status: 'failed', msg: e.message };
+      // 如果 init 失败，说明 cookie 已死，加入黑名单
+      const alive = await client.init();
+
+      if (!alive || !client.bdstoken) {
+        await addBlockedCookieToKV(env, item.cookie);
+        return { status: 'blocked_dead_cookie' };
       }
+
+      await client.deleteFiles(["/netdisk"]);
+      if (item.id) successItems.push(item.id);
+      return { status: 'success' };
+    } catch (e) {
+      return { status: 'failed', msg: e.message };
+    }
   });
 
   const runRes = await Promise.allSettled(tasks);
   runRes.forEach(r => {
-      if (r.status === 'fulfilled') results.push(r.value.status);
-      else results.push('error');
+    if (r.status === 'fulfilled') results.push(r.value.status);
+    else results.push('error');
   });
 
   if (kvEnabled && successItems.length > 0) {
-      try {
-          // Read
-          const history = await getKvValue(env, KV_CLEAN_HISTORY_KEY, {});
-          const now = Date.now();
-          
-          // Update memory object
-          successItems.forEach(id => {
-              history[id] = now;
-          });
-          
-          // Filter / Cleanup old keys
-          const activeIds = new Set(await Promise.all(serverCookies.map(getCookieId)));
-          const cleanHistory = {};
-          for (let k in history) {
-              if (activeIds.has(k)) cleanHistory[k] = history[k];
-          }
-          
-          // Write
-          await env.COOKIE_DB.put(KV_CLEAN_HISTORY_KEY, JSON.stringify(cleanHistory));
-      } catch (e) {}
+    try {
+      // Read
+      const history = await getKvValue(env, KV_CLEAN_HISTORY_KEY, {});
+      const now = Date.now();
+
+      // Update memory object
+      successItems.forEach(id => {
+        history[id] = now;
+      });
+
+      // Filter / Cleanup old keys
+      const activeIds = new Set(await Promise.all(serverCookies.map(getCookieId)));
+      const cleanHistory = {};
+      for (let k in history) {
+        if (activeIds.has(k)) cleanHistory[k] = history[k];
+      }
+
+      // Write
+      await env.COOKIE_DB.put(KV_CLEAN_HISTORY_KEY, JSON.stringify(cleanHistory));
+    } catch (e) { }
   }
 
   return `Batch Cleanup Done. Results: ${JSON.stringify(results)}`;
@@ -280,54 +280,54 @@ async function getCookieId(cookie) {
 }
 
 async function getCookiePool(env) {
-    if (env.COOKIE_DB) {
-        try {
-            const kvList = await env.COOKIE_DB.get(KV_COOKIE_POOL_KEY, { type: "json" });
-            if (Array.isArray(kvList) && kvList.length > 0) {
-                return kvList;
-            }
-        } catch(e) { }
-    }
+  if (env.COOKIE_DB) {
+    try {
+      const kvList = await env.COOKIE_DB.get(KV_COOKIE_POOL_KEY, { type: "json" });
+      if (Array.isArray(kvList) && kvList.length > 0) {
+        return kvList;
+      }
+    } catch (e) { }
+  }
 
-    if (env.SERVER_COOKIES) {
-        try {
-            const parsed = JSON.parse(env.SERVER_COOKIES);
-            if (Array.isArray(parsed)) return parsed;
-        } catch (e) { }
-    }
+  if (env.SERVER_COOKIES) {
+    try {
+      const parsed = JSON.parse(env.SERVER_COOKIES);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) { }
+  }
 
-    return [];
+  return [];
 }
 
 async function getKvValue(env, key, defaultValue) {
-    if (!env.COOKIE_DB) return defaultValue;
-    try {
-        const val = await env.COOKIE_DB.get(key, { type: "json" });
-        return val === null ? defaultValue : val;
-    } catch (e) {
-        return defaultValue;
-    }
+  if (!env.COOKIE_DB) return defaultValue;
+  try {
+    const val = await env.COOKIE_DB.get(key, { type: "json" });
+    return val === null ? defaultValue : val;
+  } catch (e) {
+    return defaultValue;
+  }
 }
 
 async function addBlockedCookieToKV(env, cookie) {
-    if (!env.COOKIE_DB) return;
-    const id = await getCookieId(cookie);
-    
-    // Read
-    let list = await getKvValue(env, KV_BLOCK_KEY, []);
-    if (!Array.isArray(list)) list = [];
-    
-    // Check & Write
-    if (!list.includes(id)) {
-        list.push(id);
-        // 限制一下列表长度，防止无限增长
-        if (list.length > 500) list.shift(); 
-        await env.COOKIE_DB.put(KV_BLOCK_KEY, JSON.stringify(list));
-    }
+  if (!env.COOKIE_DB) return;
+  const id = await getCookieId(cookie);
+
+  // Read
+  let list = await getKvValue(env, KV_BLOCK_KEY, []);
+  if (!Array.isArray(list)) list = [];
+
+  // Check & Write
+  if (!list.includes(id)) {
+    list.push(id);
+    // 限制一下列表长度，防止无限增长
+    if (list.length > 500) list.shift();
+    await env.COOKIE_DB.put(KV_BLOCK_KEY, JSON.stringify(list));
+  }
 }
 
 function shuffleArray(array) {
-  const arr = [...array]; 
+  const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -339,10 +339,10 @@ function getShareInfo(link) {
   const text = link.trim();
   let surl = "", pwd = "";
   let m = text.match(/(?:^|\s)(?:https?:\/\/)?(?:pan|yun)\.baidu\.com\/s\/([\w\-]+)/);
-  if (m) { surl = m[1]; } 
+  if (m) { surl = m[1]; }
   else {
-      m = text.match(/(?:^|\s)(?:https?:\/\/)?(?:pan|yun)\.baidu\.com\/share\/init\?.*surl=([\w\-]+)/); 
-      if (m) surl = '1' + m[1];
+    m = text.match(/(?:^|\s)(?:https?:\/\/)?(?:pan|yun)\.baidu\.com\/share\/init\?.*surl=([\w\-]+)/);
+    if (m) surl = '1' + m[1];
   }
   m = text.match(/[?&]pwd=([a-zA-Z0-9]{4})\b/);
   if (!m) m = text.match(/(?:pwd|码|code)[\s:：=]+([a-zA-Z0-9]{4})\b/i);
@@ -364,7 +364,7 @@ async function recursiveListFiles(client, dirPath, resultList) {
 export class BaiduDiskClient {
   constructor(cookie, clientIP) {
     this.cookie = cookie || "";
-    this.clientIP = clientIP || "121.11.121.11";
+    this.clientIP = clientIP || `121.11.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`; // 随便写一个国内ip
     this.bdstoken = "";
     this.commonHeaders = {
       "User-Agent": DEFAULT_UA,
@@ -434,7 +434,7 @@ export class BaiduDiskClient {
     formData.append("shorturl", surl);
     formData.append("pwd", pwd);
     formData.append("root", dir ? "0" : "1");
-    if(dir) formData.append("dir", dir);
+    if (dir) formData.append("dir", dir);
     formData.append("page", "1");
     formData.append("number", "1000");
     formData.append("order", "time");

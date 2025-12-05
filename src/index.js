@@ -11,50 +11,91 @@ export default {
 
     // 1. CORS 处理
     const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": request.headers.get("Origin") || "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Cookie, X-Requested-With",
+      "Access-Control-Allow-Headers": "Content-Type, Cookie, X-Requested-With, Authorization, X-Auth-Salt",
     };
     if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
     try {
-      // 2. Linux.do OAuth 鉴权流程
-      if (env.ENABLE_AUTH === true) {
-        // 处理 OAuth 回调
-        if (url.pathname.startsWith("/auth/")) {
-          return handleAuth(request, env, url);
-        }
+      const isAuthRequired = env.ENABLE_AUTH === true;
+      const isSSOAvailable = !!(env.LINUX_DO_CLIENT_ID && env.LINUX_DO_CLIENT_SECRET);
 
-        // 验证用户 Session
-        const session = await verifySession(request, env);
-        if (!session) {
-          if (url.pathname.startsWith("/api")) {
-            return new Response(JSON.stringify({ success: false, message: "Unauthorized" }), {
-              status: 401, headers: corsHeaders
-            });
-          } else {
-            // 重定向到 Linux.do 登录
-            const authUrl = `https://connect.linux.do/oauth2/authorize?client_id=${env.LINUX_DO_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(url.origin + '/auth/callback')}`;
-            return Response.redirect(authUrl, 302);
+      // 2. 鉴权路由
+      if (url.pathname === "/auth/logout") {
+        const cookieStr = `SESSION_AUTH=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax${url.protocol === 'https:' ? '; Secure' : ''}`;
+        return new Response(null, {
+          status: 302,
+          headers: { "Location": "/", "Set-Cookie": cookieStr }
+        });
+      }
+
+      if (isSSOAvailable) {
+        if (url.pathname.startsWith("/auth/callback")) return handleAuth(request, env, url);
+        if (url.pathname === "/auth/login") {
+          const authUrl = `https://connect.linux.do/oauth2/authorize?client_id=${env.LINUX_DO_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(url.origin + '/auth/callback')}`;
+          return Response.redirect(authUrl, 302);
+        }
+      }
+
+      // 3. API 安全检查
+      if (url.pathname.startsWith("/api")) {
+        let authorizedUser = null;
+        let isAuthorized = !isAuthRequired;
+
+        if (isAuthRequired) {
+          const authHeader = request.headers.get("Authorization");
+          const authSalt = request.headers.get("X-Auth-Salt");
+
+          // A. 检查手动 Token
+          if (env.ACCESS_TOKEN && authHeader) {
+            const bearer = authHeader.trim().replace('Bearer ', '');
+
+            // 1. 动态加盐哈希验证 (Web端安全模式)
+            // 前端发送 Hash(Token + Salt) 和 Salt，服务端复现计算过程
+            if (authSalt) {
+              const serverHash = await calculateHash(env.ACCESS_TOKEN + authSalt);
+              if (bearer === serverHash) {
+                isAuthorized = true;
+                authorizedUser = { name: "Token User (Secure)", type: "token" };
+              }
+            }
+            // 2. 明文验证 (兼容 Curl/API 工具)
+            else if (bearer === env.ACCESS_TOKEN) {
+              isAuthorized = true;
+              authorizedUser = { name: "Token User (Plain)", type: "token" };
+            }
+          }
+
+          // B. 检查 Session Cookie
+          if (!isAuthorized) {
+            const session = await verifySession(request, env);
+            if (session) {
+              isAuthorized = true;
+              authorizedUser = session;
+            }
           }
         }
-      }
 
-      // 3. 页面渲染
-      if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
-        return new Response(HTML_CONTENT, { headers: { "Content-Type": "text/html; charset=utf-8" } });
-      }
-      if (request.method === "GET" && url.pathname === "/favicon.svg") {
-        return new Response(FAVICON_CONTENT, { headers: { "Content-Type": "image/svg+xml" } });
-      }
+        // 拦截未授权请求 (仅针对 API 列表/下载操作，允许获取 User Info 以便前端判断状态)
+        if (!isAuthorized && url.pathname !== "/api/user") {
+          return new Response(JSON.stringify({ success: false, message: "Unauthorized" }), {
+            status: 401, headers: corsHeaders
+          });
+        }
 
-      // 4. API 路由分发
-      if (url.pathname.startsWith("/api")) {
+        if (url.pathname === "/api/user") {
+          return new Response(JSON.stringify({ success: isAuthorized, user: authorizedUser }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        // 处理其他 API 业务
         if (request.method !== "POST") throw new Error("Method not allowed");
         const body = await request.json();
 
         // 获取客户端 IP
-        const clientIP = request.headers.get("CF-Connecting-IP") || "121.11.121.11";  // 随便写一个国内ip
+        const clientIP = request.headers.get("CF-Connecting-IP");
         // 获取客户端 User-Agent (用于替换 PDF_UA)
         const userAgent = request.headers.get("User-Agent");
 
@@ -66,6 +107,17 @@ export default {
         return new Response(JSON.stringify(responseData), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      // 4. 页面渲染
+      if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+        // 注入服务端配置到前端
+        const configScript = `<script>window.SERVER_CONFIG = { authEnabled: ${isAuthRequired}, ssoEnabled: ${isSSOAvailable} };</script>`;
+        const finalHtml = HTML_CONTENT.replace('<!--__SERVER_CONFIG__-->', configScript);
+        return new Response(finalHtml, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+      }
+      if (request.method === "GET" && url.pathname === "/favicon.svg") {
+        return new Response(FAVICON_CONTENT, { headers: { "Content-Type": "image/svg+xml" } });
       }
 
       return new Response("Not Found", { status: 404 });
@@ -83,11 +135,6 @@ export default {
    * 对应 wrangler.toml 中的 [triggers] crons
    */
   async scheduled(event, env, ctx) {
-    console.log("Cron trigger fired at:", new Date(event.scheduledTime).toISOString());
-
-    // 移除全量 checkHealth，仅执行清理任务。
-    // 在清理任务中会自动检测 Cookie 有效性并将失效的拉黑。
-    // 这样每次 Cron 只产生极少量请求。
     try {
       const cleanResult = await handleCleanDir(env);
       console.log("Cleanup & Partial Health Check Result:", cleanResult);
@@ -96,3 +143,11 @@ export default {
     }
   }
 };
+
+// --- Helper: SHA-256 Hash ---
+async function calculateHash(message) {
+  const msgUint8 = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
