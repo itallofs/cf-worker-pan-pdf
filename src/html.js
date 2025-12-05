@@ -74,6 +74,10 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                 <button @click="openSettings" class="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center shadow-sm" title="系统设置">
                     <i class="fa-solid fa-gear"></i>
                 </button>
+                <a href="https://github.com/lain39/cf-worker-pan-pdf" target="_blank"
+                    class="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-black hover:bg-slate-50 transition-colors flex items-center justify-center shadow-sm" title="访问 GitHub 项目">
+                    <i class="fa-brands fa-github text-lg"></i>
+                </a>
             </div>
         </header>
 
