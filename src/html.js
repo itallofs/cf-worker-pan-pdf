@@ -802,7 +802,8 @@ export const HTML_CONTENT = `<!DOCTYPE html>
                             { "out": outPath, "user-agent": ua }
                         ].filter(x => x !== undefined)
                     };
-                    const res = await fetch(cookieConfig.value.aria2Url, {
+                    const rpcUrl = (cookieConfig.value.aria2Url || "").trim() || "http://localhost:6800/jsonrpc";
+                    const res = await fetch(rpcUrl, {
                         method: 'POST', 
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify(payload)
