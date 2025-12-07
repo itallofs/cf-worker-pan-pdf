@@ -50,6 +50,7 @@ jobs:
               - `ACCESS_TOKEN`: (`Secret`) 你的密码
               - `SERVER_COOKIES`: (`Secret`) 你的 Cookie JSON 数组，比如 `["BDUSS=xxx"]`
             5. 去 **Settings -> Triggers** 添加 Cron Trigger（比如 `0 */2 * * *`），用于自动清理文件。
+            6. **Domains & Routes** 处设置Custom domain（或者有直接可以访问workers.dev的网络环境就可以不用设置）。
       
       - name: Test Build (Manual Trigger Only)
         if: github.event_name == 'workflow_dispatch'
